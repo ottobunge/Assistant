@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "es2023"
+        ],
+        "module": "es2022",
+        "target": "es2022",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "nodenext",
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "outDir": "dist",
+        "baseUrl": "src",
+    },  
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "**/*.spec.ts"
+    ],
+    "ts-node": {
+        "esm": true
+    }
+}

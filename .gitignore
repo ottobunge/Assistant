@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.template
+node_modules/
+memory/
+.wwebjs*
+agents.json
