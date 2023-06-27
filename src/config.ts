@@ -6,12 +6,14 @@ enum ENV_VARS {
     OWN_PHONE_NUMBER = 'OWN_PHONE_NUMBER',
     OWNER = 'OWNER',
     MODEL = 'MODEL',
+    DEFAULT_AGENT_ID = 'DEFAULT_AGENT_ID',
 }
 
 const defaults: {
     [key: string]: string;
 } = {
     [ENV_VARS.MODEL]: 'gpt-3.5-turbo-16k-0613',
+    [ENV_VARS.DEFAULT_AGENT_ID]: 'default',
 }
 
 type Config = Record<ENV_VARS, string>;

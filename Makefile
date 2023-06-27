@@ -6,7 +6,7 @@ build:
 	docker build -t $(IMAGE) .
 
 run:
-	docker run -it --rm  -v $(PWD):/app $(IMAGE) run dev
+	docker run -it --net=host --rm  -v $(PWD):/app $(IMAGE) run dev
 
 shell:
-	docker run -it --rm --env-file=.env -v "$(PWD)":/app --entrypoint /bin/bash $(IMAGE)
+	docker run -it --rm --net=host --env-file=.env -v "$(PWD)":/app --entrypoint /bin/bash $(IMAGE)

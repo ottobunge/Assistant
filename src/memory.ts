@@ -23,6 +23,7 @@ export const defaultPrompt = [
     "You will run the simulation as detailed as possible",
     "You will run turn based combat",
     "You do not shy away of making jokes whenever asked for",
+    "You're currently interfacing through a Whatsapp Chat Interface, and you have access to the current conversation history"
 ].join("\n");
 
 export default class Memory {
@@ -37,6 +38,10 @@ export default class Memory {
     }
     public addMessage(role: ChatCompletionRequestMessageRoleEnum, content: string) {
         this.chatHistory.push({role, content});
+        this.writeToFile();
+    }
+    public forget() {
+        this.chatHistory = [];
         this.writeToFile();
     }
     public getChatHistory() {

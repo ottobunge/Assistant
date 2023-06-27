@@ -1,14 +1,8 @@
 import fs from "fs";
 import GPT from "./gpt.ts";
-import { ConversationAgentsMapping } from "./types.ts";
+import { ConversationAgentsMapping, SavedConversationAgentsMapping } from "./types.ts";
 import Memory, { defaultPrompt } from "./memory.ts";
 
-interface SavedConversationAgentsMapping {
-    [conversationId: string]: {
-        id: string;
-        initialPrompt: string;
-    }[];
-}
 
 export default class AgentManager {
     private agents: ConversationAgentsMapping;

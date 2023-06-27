@@ -2,21 +2,12 @@ import qrcode from 'qrcode-terminal';
 import WAWebJS, { Client } from'whatsapp-web.js';
 import ChatUserInterface from './cui.ts';
 import AgentManager from './agent_manager.ts';
-
-
+import {client} from './wapp.ts';
 let seenMessages = new Set();
 const agentManager = new AgentManager();
 const cui = new ChatUserInterface(agentManager);
 
 console.log('Starting...');
-
-const client = new Client({
-    authStrategy: new WAWebJS.LocalAuth(),
-    puppeteer: {
-        args: ['--no-sandbox'],
-        executablePath: '/usr/bin/google-chrome-stable',
-    }
-});
 
 console.log('Client created!');
 console.log('Initializing...');
