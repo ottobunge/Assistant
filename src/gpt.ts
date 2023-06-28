@@ -1,7 +1,7 @@
 import Memory from './memory.ts';
 import config from './config.ts';
 import { Configuration, OpenAIApi } from "openai";
-import { ChatHistory } from 'types.ts';
+import { ChatHistory } from './types.ts';
 
 
 const configuration = new Configuration({

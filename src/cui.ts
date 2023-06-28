@@ -1,7 +1,7 @@
 import AgentManager from './agent_manager/index.ts';
 import WAWebJS from'whatsapp-web.js';
 import { COMMAND_TYPES, CommandMatcher, Command } from './types.ts';
-import commands from 'commands.ts';
+import commands from './commands.ts';
 
 const functionTriggerTemplateMatcher = (template: string, text: string) => {
     const templateParts = template.split(' ');
@@ -49,6 +49,7 @@ export default class ChatUserInterface {
             return;
         }
         console.log(`🤖:\n${JSON.stringify(command, null, 2)}`)
-        command.trigger(command.getCommandParameters(body, agents), this.agentManager, message);
+        const parameters = command.getCommandParameters(body, agents);
+        command.trigger(parameters, this.agentManager, message);
     }
 }
