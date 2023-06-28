@@ -1,7 +1,7 @@
 import qrcode from 'qrcode-terminal';
 import WAWebJS, { Client } from'whatsapp-web.js';
 import ChatUserInterface from './cui.ts';
-import AgentManager from './agent_manager.ts';
+import AgentManager from './agent_manager/index.ts';
 import {client} from './wapp.ts';
 let seenMessages = new Set();
 const agentManager = new AgentManager();

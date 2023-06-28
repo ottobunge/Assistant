@@ -1,10 +1,10 @@
 import fs from "fs";
-import GPT from "./gpt.ts";
-import { ConversationAgentsMapping, SavedConversationAgentsMapping } from "./types.ts";
-import Memory, { defaultPrompt } from "./memory.ts";
+import GPT from "../gpt.ts";
+import { AgentManagerInterface, ConversationAgentsMapping, SavedConversationAgentsMapping } from "./types.ts";
+import Memory, { defaultPrompt } from "../memory.ts";
 
 
-export default class AgentManager {
+export default class AgentManager implements AgentManagerInterface {
     private agents: ConversationAgentsMapping;
     constructor(){
         this.agents = {};

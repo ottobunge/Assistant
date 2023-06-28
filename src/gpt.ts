@@ -33,6 +33,9 @@ export default class GPT {
     public forget(): void {
         this.memory.forget();
     }
+    public reloadMemory(): void {
+        this.memory.readFromFile();
+    }
     public async chat(text: string, participants: string[]): Promise<string> {
         const response = await openai.createChatCompletion({
             model: config.MODEL,

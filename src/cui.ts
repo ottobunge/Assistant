@@ -1,4 +1,4 @@
-import AgentManager from './agent_manager.ts';
+import AgentManager from './agent_manager/index.ts';
 import Config from './config.ts';
 import WAWebJS from'whatsapp-web.js';
 import { client } from './wapp.ts';
@@ -17,6 +17,14 @@ const functionTriggerTemplateMatcher = (template: string, text: string) => {
     }
     return false;
 }
+async function makeMessageString  (message: WAWebJS.Message, body: string) {
+    const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
+    const timesString = `Current Time: ${new Date().toLocaleTimeString()}`;
+    const contact = await message.getContact();
+    const fromString = `From: ${contact.shortName || contact.pushname || contact.name  || message.from}`.replace(Config.OWN_PHONE_NUMBER, Config.OWNER);
+    const bodyString = `Body: ${body}`;
+    return [dateString, timesString, fromString, bodyString].join("\n")
+}
 
 export const availableCommands: CommandMatcher<COMMAND_TYPES>[] = []
 availableCommands.push({
@@ -32,6 +40,40 @@ availableCommands.push({
             agentId,
             text: textToSend,
         }
+    },
+    trigger: async (parameters, agentManager, message) => {
+        message.reply(`🤖:\nProcessing...`);
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const queryAgent = agentManager.getAgent(conversationId, parameters.agentId);
+        const query = await makeMessageString(message, parameters.text);
+        let participants: string[] = [];
+        if(chat.isGroup){
+            const groupCHAT = chat as WAWebJS.GroupChat;
+            participants = await Promise.all(groupCHAT.participants.map(async(participant) => {
+                const contact = (await client.getContactById(participant.id._serialized));
+                if(contact.number.includes(Config.OWN_PHONE_NUMBER) || contact.isMe){
+                    return Config.OWNER;
+                }
+                return contact.name || contact.pushname || contact.shortName || participant.id._serialized;
+            }));
+        }else {
+            const contact = await message.getContact();
+            participants = [contact.pushname || contact.name || contact.shortName || contact.id._serialized];
+        }
+        if(queryAgent !== undefined){
+            try {
+                const response = (await queryAgent.chat(query, participants)).trim();
+                const nameString = parameters.agentId === 'default' ? '🤖:' : `🤖 ${parameters.agentId}:\n`;
+                message.reply(`${nameString}\n${response}`);
+                return true;
+            }catch(error){
+                message.reply("There was an error processing your request.");
+            }
+        } else {
+            message.reply(`🤖:\nNo agent named ${parameters.agentId} exists!`);
+        }
+        return false;
     }
 } as CommandMatcher<COMMAND_TYPES.CHAT_AGENT>);
 availableCommands.push({
@@ -44,14 +86,61 @@ availableCommands.push({
         return {
             agentId,
         }
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const deleteAgentName = parameters.agentId;
+        const deleteMemoryAgent = agentManager.getAgent(conversationId, parameters.agentId);
+        if(deleteMemoryAgent !== undefined){
+            deleteMemoryAgent.forget();
+            message.reply(`🤖:\nDeleted agent ${deleteAgentName} memory!`);
+            return true;
+        } else {
+            message.reply(`🤖:\nAgent ${deleteAgentName} does not exist!`);
+        }
+        return false;
     }
 } as CommandMatcher<COMMAND_TYPES.DELETE_AGENT_HISTORY>);
+availableCommands.push({
+    command: COMMAND_TYPES.RELOAD_AGENT_MEMORY,
+    template: '/agent <agentId> reload history',
+    description: "Reload the chat history of an agent.",
+    getCommandParameters: (text: string, availableAgentIds: string[]) => {
+        const textParts = text.toLocaleLowerCase().split(' ');
+        const agentId = availableAgentIds.find(agentId => textParts[1].includes(agentId.toLocaleLowerCase()));
+        return {
+            agentId,
+        }
+    },
+    trigger: async(parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const reloadAgentName = parameters.agentId;
+        const reloadMemoryAgent = agentManager.getAgent(conversationId, parameters.agentId);
+        if(reloadMemoryAgent !== undefined){
+            reloadMemoryAgent.reloadMemory();
+            message.reply(`🤖:\nReloaded agent ${reloadAgentName} memory!`);
+            return true;
+        } else {
+            message.reply(`🤖:\nAgent ${reloadAgentName} does not exist!`);
+        }
+        return false;
+    }
+} as CommandMatcher<COMMAND_TYPES.RELOAD_AGENT_MEMORY>);
 availableCommands.push({
     command: COMMAND_TYPES.LIST_AGENTS,
     template: '/agent list',
     description: "List all available chat agents.",
     getCommandParameters: (text: string, availableAgentIds: string[]) => {
         return undefined;
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const agents = agentManager.getAgents(conversationId)
+        message.reply(`🤖:\n\t${agents.join('\n\t')}`);
+        return true;
     }
 } as CommandMatcher<COMMAND_TYPES.LIST_AGENTS>);
 
@@ -66,6 +155,22 @@ availableCommands.push({
             agentId,
             prompt: textParts.slice(3).join(' '),
         };
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const newAgentName = parameters.agentId;
+        const initialPrompt = parameters.prompt;
+        if(!agentManager.agentExists(conversationId, newAgentName)){
+            const agent = agentManager.createAgent(conversationId, newAgentName, initialPrompt);
+            if(agent !== undefined){
+                message.reply(`🤖:\nCreated agent ${newAgentName}!\nInitial Prompt: ${initialPrompt}`);
+                return true;
+            }
+        } else {
+            message.reply(`🤖:\nAgent ${newAgentName} already exists!`);
+        }
+        return false;
     }
 } as CommandMatcher<COMMAND_TYPES.CREATE_AGENT>);
 availableCommands.push({
@@ -79,6 +184,20 @@ availableCommands.push({
             agentId,
             prompt: textParts.slice(3).join(' '),
         };
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const modifyAgentName = parameters.agentId;
+        const modifiedPrompt = parameters.prompt;
+        if(agentManager.agentExists(conversationId, modifyAgentName)){
+            agentManager.updatePrompt(conversationId, modifyAgentName, modifiedPrompt);
+            message.reply(`🤖:\nUpdated agent ${modifyAgentName}!\nNew Prompt: ${modifiedPrompt}`);
+            return true;
+        } else {
+            message.reply(`🤖:\nAgent ${modifyAgentName} does not exist!`);
+        }
+        return false;
     }
 } as CommandMatcher<COMMAND_TYPES.MODIFY_AGENT>);
 availableCommands.push({
@@ -91,6 +210,19 @@ availableCommands.push({
         return {
             agentId,
         };
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const getAgentName = parameters.agentId;
+        if(agentManager.agentExists(conversationId, getAgentName)){
+            const prompt = agentManager.getPrompt(conversationId, getAgentName);
+            message.reply(`🤖:\nAgent ${getAgentName}!\nPrompt: ${prompt}`);
+            return true;
+        } else {
+            message.reply(`🤖:\nAgent ${getAgentName} does not exist!`);
+        }
+        return false;
     }
 } as CommandMatcher<COMMAND_TYPES.GET_AGENT>);
 availableCommands.push({
@@ -99,8 +231,17 @@ availableCommands.push({
     description: "List all available commands commands.",
     getCommandParameters: (text: string, availableAgentIds: string[]) => {
         return undefined;
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const helpString = availableCommands.map((command) => {
+            const templateString = typeof command.template === 'string' ? command.template : command.template.join(' | ');
+            return `${command.command}:\n\tDescription: ${command.description}\n\tUsage: ${templateString}`;
+        }).join('\n');
+        message.reply(`🤖:\n${helpString}`);
+        return true;
     }
 } as CommandMatcher<COMMAND_TYPES.HELP>);
+
 export default class ChatUserInterface {
     private agentManager: AgentManager;
 
@@ -108,16 +249,7 @@ export default class ChatUserInterface {
         this.agentManager = agentManager;
     }
 
-    public async makeMessageString  (message: WAWebJS.Message, body: string) {
-        const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
-        const timesString = `Current Time: ${new Date().toLocaleTimeString()}`;
-        const contact = await message.getContact();
-        const fromString = `From: ${contact.shortName || contact.pushname || contact.name  || message.from}`.replace(Config.OWN_PHONE_NUMBER, Config.OWNER);
-        const bodyString = `Body: ${body}`;
-        return [dateString, timesString, fromString, bodyString].join("\n")
-    }
-
-    public getCommand(text: string, availableAgentIds: string[]) {
+    public getCommand(text: string, availableAgentIds: string[]): CommandMatcher<COMMAND_TYPES> | undefined {
         const command = availableCommands.find((command) => {
             if(typeof command.template === 'string') {
                 return functionTriggerTemplateMatcher(command.template, text);
@@ -128,11 +260,7 @@ export default class ChatUserInterface {
         if(command === undefined) {
             return undefined;
         }
-        const commandParameters = command.getCommandParameters(text, availableAgentIds);
-        return {
-            command: command.command,
-            parameters: commandParameters,
-        };
+        return command;
     }
 
     public async processMessage(message: WAWebJS.Message) {
@@ -145,95 +273,6 @@ export default class ChatUserInterface {
             return;
         }
         console.log(`🤖:\n${JSON.stringify(command, null, 2)}`)
-        switch(command.command) {
-            case COMMAND_TYPES.CHAT_AGENT:
-                const chatComand = command as Command<COMMAND_TYPES.CHAT_AGENT>;
-                message.reply(`🤖:\nProcessing...`);
-                const queryAgent = this.agentManager.getAgent(conversationId, chatComand.parameters.agentId);
-                const query = await this.makeMessageString(message, chatComand.parameters.text);
-                let participants: string[] = [];
-                if(chat.isGroup){
-                    const groupCHAT = chat as WAWebJS.GroupChat;
-                    participants = await Promise.all(groupCHAT.participants.map(async(participant) => {
-                        const contact = (await client.getContactById(participant.id._serialized));
-                        if(contact.number.includes(Config.OWN_PHONE_NUMBER) || contact.isMe){
-                            return Config.OWNER;
-                        }
-                        return contact.name || contact.pushname || contact.shortName || participant.id._serialized;
-                    }));
-                }else {
-                    const contact = await message.getContact();
-                    participants = [contact.pushname || contact.name || contact.shortName || contact.id._serialized];
-                }
-                if(queryAgent !== undefined){
-                    try {
-                        const response = (await queryAgent.chat(query, participants)).trim();
-                        const nameString = chatComand.parameters.agentId === 'default' ? '🤖:' : `🤖 ${chatComand.parameters.agentId}:\n`;
-                        message.reply(`${nameString}\n${response}`);
-                    }catch(error){
-                        message.reply("There was an error processing your request.");
-                    }
-                } else {
-                    message.reply(`🤖:\nNo agent named ${chatComand.parameters.agentId} exists!`);
-                }
-                return
-            case COMMAND_TYPES.CREATE_AGENT:
-                const createCommand = command as Command<COMMAND_TYPES.CREATE_AGENT>;
-                const newAgentName = createCommand.parameters.agentId;
-                const initialPrompt = createCommand.parameters.prompt;
-                if(!this.agentManager.agentExists(conversationId, newAgentName)){
-                    const agent = this.agentManager.createAgent(conversationId, newAgentName, initialPrompt);
-                    if(agent !== undefined){
-                        message.reply(`🤖:\nCreated agent ${newAgentName}!\nInitial Prompt: ${initialPrompt}`);
-                    }
-                } else {
-                    message.reply(`🤖:\nAgent ${newAgentName} already exists!`);
-                }
-                return
-            case COMMAND_TYPES.LIST_AGENTS:
-                const agents = this.agentManager.getAgents(conversationId)
-                message.reply(`🤖:\n\t${agents.join('\n\t')}`);
-                return
-            case COMMAND_TYPES.MODIFY_AGENT:
-                const modifyCommand = command as Command<COMMAND_TYPES.MODIFY_AGENT>;
-                const modifyAgentName = modifyCommand.parameters.agentId;
-                const modifiedPrompt = modifyCommand.parameters.prompt;
-                if(this.agentManager.agentExists(conversationId, modifyAgentName)){
-                    this.agentManager.updatePrompt(conversationId, modifyAgentName, modifiedPrompt);
-                    message.reply(`🤖:\nUpdated agent ${modifyAgentName}!\nNew Prompt: ${modifiedPrompt}`);
-                } else {
-                    message.reply(`🤖:\nAgent ${modifyAgentName} does not exist!`);
-                }
-                return
-            case COMMAND_TYPES.GET_AGENT:
-                const getAgentCommand = command as Command<COMMAND_TYPES.GET_AGENT>;
-                const getAgentName = getAgentCommand.parameters.agentId;
-                if(this.agentManager.agentExists(conversationId, getAgentName)){
-                    const prompt = this.agentManager.getPrompt(conversationId, getAgentName);
-                    message.reply(`🤖:\nAgent ${getAgentName}!\nPrompt: ${prompt}`);
-                } else {
-                    message.reply(`🤖:\nAgent ${getAgentName} does not exist!`);
-                }
-                return
-            case COMMAND_TYPES.DELETE_AGENT_HISTORY:
-                const deleteAgentCommand = command as Command<COMMAND_TYPES.DELETE_AGENT_HISTORY>;
-                const deleteAgentName = deleteAgentCommand.parameters.agentId;
-                const deleteMemoryAgent = this.agentManager.getAgent(conversationId, deleteAgentCommand.parameters.agentId);
-                if(deleteMemoryAgent !== undefined){
-                    deleteMemoryAgent.forget();
-                    message.reply(`🤖:\nDeleted agent ${deleteAgentName} memory!`);
-                } else {
-                    message.reply(`🤖:\nAgent ${deleteAgentName} does not exist!`);
-                }
-                return
-            case COMMAND_TYPES.HELP:
-                const helpString = availableCommands.map((command) => {
-                    const templateString = typeof command.template === 'string' ? command.template : command.template.join(' | ');
-                    return `${command.command}:\n\tDescription: ${command.description}\n\tUsage: ${templateString}`;
-                }).join('\n')
-                message.reply(`🤖:\n${helpString}`);
-            default:
-                return
-        }
+        command.trigger(command.getCommandParameters(body, agents), this.agentManager, message);
     }
 }
