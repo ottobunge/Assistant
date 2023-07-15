@@ -72,7 +72,7 @@ export default class AgentManager implements AgentManagerInterface {
                 ...acc,
                 [conversationId]: savedAgents[conversationId].reduce((accAgent, {id, initialPrompt, config}) => ({
                     ...accAgent,
-                    [id]: new GPT(new Memory(`${conversationId}-${id}`, initialPrompt), config ?? new AgentConfig(0.7, 0.1, 1.18, 0)),
+                    [id]: new GPT(new Memory(`${conversationId}-${id}`, initialPrompt), config),
                 }), {})
             }), {} as ConversationAgentsMapping);
 

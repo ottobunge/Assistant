@@ -11,7 +11,7 @@ export interface SavedConversationAgentsMapping {
     [conversationId: string]: {
         id: string;
         initialPrompt: string;
-        config?: AgentConfig;
+        config: AgentConfig;
     }[];
 }
 
