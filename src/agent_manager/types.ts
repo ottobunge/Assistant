@@ -1,3 +1,4 @@
+import { AgentConfig } from "agentConfig.ts";
 import GPT from "../gpt.ts";
 
 export interface ConversationAgentsMapping {
@@ -10,6 +11,7 @@ export interface SavedConversationAgentsMapping {
     [conversationId: string]: {
         id: string;
         initialPrompt: string;
+        config?: AgentConfig;
     }[];
 }
 

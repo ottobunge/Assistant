@@ -1,14 +1,13 @@
 import qrcode from 'qrcode-terminal';
-import WAWebJS, { Client } from'whatsapp-web.js';
+import WAWebJS from'whatsapp-web.js';
 import ChatUserInterface from './cui.ts';
 import AgentManager from './agent_manager/index.ts';
-import {client} from './wapp.ts';
-let seenMessages = new Set();
+import { client } from './wapp.ts';
+const seenMessages = new Set();
 const agentManager = new AgentManager();
 const cui = new ChatUserInterface(agentManager);
 
 console.log('Starting...');
-
 console.log('Client created!');
 console.log('Initializing...');
 const processMessage = (message: WAWebJS.Message) => {

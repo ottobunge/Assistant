@@ -2,20 +2,37 @@ import Memory from './memory.ts';
 import config from './config.ts';
 import { Configuration, OpenAIApi } from "openai";
 import { ChatHistory } from './types.ts';
+import { AgentConfig } from './agentConfig.ts';
 
 
 const configuration = new Configuration({
     apiKey: config.OPENAI_API_KEY,
-    basePath: 'http://172.29.64.1:5001/v1'
+    basePath: config.OPENAI_API_HOST,
 });
 
 export const openai = new OpenAIApi(configuration);
 export default class GPT {
     private memory: Memory;
-    constructor(memory: Memory){
+    private config: AgentConfig;
+    constructor(memory: Memory, config: AgentConfig){
         this.memory = memory;
+        this.config = config;
     }
-
+    public setTopP(topP: number): void {
+        this.config.topP = topP;
+    }
+    public setTemperature(temperature: number): void {
+        this.config.temperature = temperature;
+    }
+    public setFrequencyPenalty(frequencyPenalty: number): void {
+        this.config.frequencyPenalty = frequencyPenalty;
+    }
+    public setPresencePenalty(presencePenalty: number): void {
+        this.config.presencePenalty = presencePenalty;
+    }
+    public getConfig(): AgentConfig {
+        return this.config;
+    }
     public getInitialPrompt(): string {
         return this.memory.initialPrompt;
     }
@@ -40,6 +57,10 @@ export default class GPT {
         const response = await openai.createChatCompletion({
             model: config.MODEL,
             max_tokens: 700,
+            top_p: this.config.topP,
+            temperature: this.config.temperature,
+            frequency_penalty: this.config.frequencyPenalty,
+            presence_penalty: this.config.presencePenalty,
             messages: [this.getInitialSystemMessage(participants), ...this.memory.getChatHistory(), { role: "user", content: text }],
         });
         const { choices } = response.data;

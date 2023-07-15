@@ -2,6 +2,7 @@ import fs from "fs";
 import GPT from "../gpt.ts";
 import { AgentManagerInterface, ConversationAgentsMapping, SavedConversationAgentsMapping } from "./types.ts";
 import Memory, { defaultPrompt } from "../memory.ts";
+import { AgentConfig } from "../agentConfig.ts";
 
 
 export default class AgentManager implements AgentManagerInterface {
@@ -32,7 +33,8 @@ export default class AgentManager implements AgentManagerInterface {
         if(!this.agents?.[conversationId] === undefined) {
             this.agents[conversationId] = {};
         }
-        this.agents[conversationId][agentId] = new GPT(new Memory(`${conversationId}-${agentId}`, initialPrompt));
+        const config = new AgentConfig(0.7, 0.1, 1.18, 0);
+        this.agents[conversationId][agentId] = new GPT(new Memory(`${conversationId}-${agentId}`, initialPrompt), config);
         this.writeToFile();
         return this.agents[conversationId][agentId];
     }
@@ -56,6 +58,7 @@ export default class AgentManager implements AgentManagerInterface {
             [conversationId]: Object.keys(this.agents[conversationId]).map(agentId => ({
                 id: agentId,
                 initialPrompt: this.agents[conversationId][agentId].getInitialPrompt(),
+                config: this.agents[conversationId][agentId].getConfig(),
             })),
         }), {} as SavedConversationAgentsMapping);
         fs.writeFileSync(`./agents.json`, JSON.stringify(savedAgents, null, 2));
@@ -67,9 +70,9 @@ export default class AgentManager implements AgentManagerInterface {
             const savedAgents = JSON.parse(file.toString()) as SavedConversationAgentsMapping;
             this.agents = Object.keys(savedAgents).reduce((acc, conversationId) => ({
                 ...acc,
-                [conversationId]: savedAgents[conversationId].reduce((accAgent, {id, initialPrompt}) => ({
+                [conversationId]: savedAgents[conversationId].reduce((accAgent, {id, initialPrompt, config}) => ({
                     ...accAgent,
-                    [id]: new GPT(new Memory(`${conversationId}-${id}`, initialPrompt)),
+                    [id]: new GPT(new Memory(`${conversationId}-${id}`, initialPrompt), config ?? new AgentConfig(0.7, 0.1, 1.18, 0)),
                 }), {})
             }), {} as ConversationAgentsMapping);
 

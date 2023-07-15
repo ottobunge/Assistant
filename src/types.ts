@@ -13,6 +13,7 @@ export enum COMMAND_TYPES {
     CREATE_AGENT = 'CREATE_AGENT',
     LIST_AGENTS = 'LIST_AGENTS',
     MODIFY_AGENT = 'MODIFY_AGENT',
+    MODIFY_AGENT_CONFIG = 'MODIFY_AGENT_CONFIG',
     GET_AGENT = 'GET_AGENT',
     DELETE_AGENT_HISTORY = 'DELETE_AGENT_HISTORY',
     RELOAD_AGENT_MEMORY = 'RELOAD_AGENT_MEMORY',
@@ -41,6 +42,11 @@ export interface CommandParameters {
     };
     [COMMAND_TYPES.RELOAD_AGENT_MEMORY]: {
         agentId: string;
+    };
+    [COMMAND_TYPES.MODIFY_AGENT_CONFIG]: {
+        agentId: string;
+        attribute: 'temperature' | 'topP' | 'frequencyPenalty' | 'presencePenalty' | string;
+        value: number;
     };
     [COMMAND_TYPES.HELP]: void;
 }

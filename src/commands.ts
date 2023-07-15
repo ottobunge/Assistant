@@ -2,6 +2,7 @@ import Config from './config.ts';
 import WAWebJS from'whatsapp-web.js';
 import { client } from './wapp.ts';
 import { COMMAND_TYPES, CommandMatcher } from './types.ts';
+import GPT from 'gpt.ts';
 async function makeMessageString  (message: WAWebJS.Message, body: string) {
     const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
     const timesString = `Current Time: ${new Date().toLocaleTimeString()}`;
@@ -35,9 +36,9 @@ availableCommands.push({
         let participants: string[] = [];
         if(chat.isGroup){
             const groupCHAT = chat as WAWebJS.GroupChat;
-            participants = await Promise.all(groupCHAT.participants.map(async(participant) => {
+            participants = await Promise.all(groupCHAT.participants.map(async participant => {
                 const contact = (await client.getContactById(participant.id._serialized));
-                if(contact.number.includes(Config.OWN_PHONE_NUMBER) || contact.isMe){
+                if(contact?.number?.includes(Config.OWN_PHONE_NUMBER) || contact.isMe) {
                     return Config.OWNER;
                 }
                 return contact.name || contact.pushname || contact.shortName || participant.id._serialized;
@@ -201,8 +202,10 @@ availableCommands.push({
         const conversationId = (chat).id._serialized;
         const getAgentName = parameters.agentId;
         if(agentManager.agentExists(conversationId, getAgentName)){
+            const agent = agentManager.getAgent(conversationId, getAgentName) as GPT;
             const prompt = agentManager.getPrompt(conversationId, getAgentName);
-            message.reply(`🤖:\nAgent ${getAgentName}!\nPrompt: ${prompt}`);
+            const config = Object.entries(agent.getConfig()).map(([key, value]) => `${key}: ${value}`).join('\n\t');
+            message.reply(`🤖:\nAgent ${getAgentName}!\nPrompt: ${prompt}\nConfig:\n\t${config}`);
             return true;
         } else {
             message.reply(`🤖:\nAgent ${getAgentName} does not exist!`);
@@ -210,6 +213,58 @@ availableCommands.push({
         return false;
     }
 } as CommandMatcher<COMMAND_TYPES.GET_AGENT>);
+availableCommands.push({
+    command: COMMAND_TYPES.MODIFY_AGENT_CONFIG,
+    template: '/agent set <agentId> <temperature|topP|frequencyPenalty|presencePenalty> <value>',
+    description: "Get the initial prompt and model for an existing chat agent.",
+    getCommandParameters: (text: string, availableAgentIds: string[]) => {
+        const textParts = text.toLocaleLowerCase().split(' ');
+        const agentId = availableAgentIds.find(agentId => textParts[2].includes(agentId.toLocaleLowerCase()));
+        const attribute = textParts[3]
+        const value = new Number(textParts[4]);
+        return {
+            agentId,
+            attribute,
+            value
+        };
+    },
+    trigger: async (parameters, agentManager, message) => {
+        const chat = await message.getChat();
+        const conversationId = (chat).id._serialized;
+        const getAgentName = parameters.agentId;
+        const attribute = parameters.attribute;
+        const value = parameters.value;
+        if(agentManager.agentExists(conversationId, getAgentName)){
+            const agent = agentManager.getAgent(conversationId, getAgentName) as GPT;
+            switch(attribute){
+                case 'temperature':
+                    agent.setTemperature(value);
+                    message.reply(`🤖:\nSet temperature to ${value}`);
+                    break;
+                case 'topP':
+                    agent.setTopP(value);
+                    message.reply(`🤖:\nSet topP to ${value}`);
+                    break;
+                case 'frequencyPenalty':
+                    agent.setFrequencyPenalty(value);
+                    message.reply(`🤖:\nSet frequencyPenalty to ${value}`);
+                    break;
+                case 'presencePenalty':
+                    agent.setPresencePenalty(value);
+                    message.reply(`🤖:\nSet presencePenalty to ${value}`);
+                    break;
+                default:
+                    message.reply(`🤖:\nAttribute ${attribute} does not exist!`);
+                    return false;
+            }
+            agentManager.writeToFile();
+            return true;
+        } else {
+            message.reply(`🤖:\nAgent ${getAgentName} does not exist!`);
+        }
+        return false;
+    }
+} as CommandMatcher<COMMAND_TYPES.MODIFY_AGENT_CONFIG>);
 availableCommands.push({
     command: COMMAND_TYPES.HELP,
     template: '/agent help',

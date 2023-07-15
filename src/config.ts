@@ -7,6 +7,8 @@ enum ENV_VARS {
     OWNER = 'OWNER',
     MODEL = 'MODEL',
     DEFAULT_AGENT_ID = 'DEFAULT_AGENT_ID',
+    SD_API_HOST = 'SD_API_HOST',
+    OPENAI_API_HOST = 'OPENAI_API_HOST',
 }
 
 const defaults: {
@@ -14,6 +16,7 @@ const defaults: {
 } = {
     [ENV_VARS.MODEL]: 'gpt-3.5-turbo-16k-0613',
     [ENV_VARS.DEFAULT_AGENT_ID]: 'default',
+    [ENV_VARS.OPENAI_API_HOST]: 'https://api.openai.com/v1/',
 }
 
 type Config = Record<ENV_VARS, string>;
