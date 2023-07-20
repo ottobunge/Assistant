@@ -38,10 +38,12 @@ availableCommands.push({
             const groupCHAT = chat as WAWebJS.GroupChat;
             participants = await Promise.all(groupCHAT.participants.map(async participant => {
                 const contact = (await client.getContactById(participant.id._serialized));
-                if(contact?.number?.includes(Config.OWN_PHONE_NUMBER) || contact.isMe) {
+                const name = (contact.name || contact.pushname || contact.shortName || participant.id._serialized).trim();
+                const isMe = name === 'Yo' || contact?.number?.includes(Config.OWN_PHONE_NUMBER) || contact.isMe;
+                if(isMe) {
                     return Config.OWNER;
                 }
-                return contact.name || contact.pushname || contact.shortName || participant.id._serialized;
+                return name;
             }));
         }else {
             const contact = await message.getContact();

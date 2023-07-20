@@ -42,9 +42,10 @@ export default class GPT {
     }
 
     public getInitialSystemMessage(participants: string[]): ChatHistory {
+        const conversationFormat = 'This is the conversation Format\n\nUser:\nCurrent Date: [MESSAGE_DATE]\nCurrent Time: [MESSAGE_TIME]\nFrom: [USER_FROM]\nBody: [USER_MESSAGE]\nAssistant: [ASSISTANT_RESPONSE]'
         return {
             role: "system",
-            content: this.memory.initialPrompt+`\n\nThis are all the people in the conversation: ${participants.join(', ')}`,
+            content: "System: You are an AI system embedded in a whatsapp group.\n\n" + conversationFormat +"\n\nThis is a description of yourself: " + this.memory.initialPrompt+`\n\nThis are all the people in the conversation: ${participants.join(', ')}`+ `\n\nThe actual conversation starts here.\n`,
         };
     }
     public forget(): void {
