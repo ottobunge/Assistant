@@ -22,8 +22,8 @@ Welcome to the Intelligent Chat Application! This project is designed to enhance
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/intelligent-chat-app.git
-   cd intelligent-chat-app
+   git clone https://github.com/ottobunge/Assistant.git
+   cd Assistant
    ```
 
 2. Install dependencies:
