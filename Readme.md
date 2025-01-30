@@ -1,6 +1,6 @@
-# Intelligent Chat Application
+# Assistant
 
-Welcome to the Intelligent Chat Application! This project is designed to enhance productivity and creativity by integrating cutting-edge technologies for building intelligent chat applications.
+Welcome to the Assistant! This project is designed to enhance productivity and creativity by integrating cutting-edge technologies for building Assistants.
 
 ## Features
 
@@ -15,7 +15,7 @@ Welcome to the Intelligent Chat Application! This project is designed to enhance
 ### Prerequisites
 
 - Node.js
-- npm
+- bun
 - Docker (optional, for containerized deployment)
 
 ### Installation
@@ -28,7 +28,7 @@ Welcome to the Intelligent Chat Application! This project is designed to enhance
 
 2. Install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 
 3. Set up environment variables:
@@ -36,7 +36,7 @@ Welcome to the Intelligent Chat Application! This project is designed to enhance
 
 4. Run the application:
    ```bash
-   npm run dev
+   bun src/index.ts
    ```
 
 ## Usage
@@ -58,4 +58,4 @@ For questions or collaboration, feel free to reach out to [your email] or open a
 
 ---
 
-Thank you for checking out the Intelligent Chat Application! We hope it helps you build amazing chat experiences. 🚀
+Thank you for checking out the Assistant! We hope it helps you build amazing chat experiences. 🚀
