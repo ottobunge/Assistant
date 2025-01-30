@@ -55,6 +55,7 @@ export default class GPT {
         this.memory.readFromFile();
     }
     public async chat(text: string, participants: string[]): Promise<string> {
+        console.log({initialMessage: this.getInitialSystemMessage(participants)});
         const response = await openai.createChatCompletion({
             model: config.MODEL,
             max_tokens: 700,

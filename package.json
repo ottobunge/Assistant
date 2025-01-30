@@ -3,12 +3,13 @@
     "src"
   ],
   "dependencies": {
+    "bun": "^1.2.0",
     "dotenv": "^16.3.1",
     "openai": "^3.3.0",
     "qrcode-terminal": "^0.12.0",
     "stable-diffusion-api": "^0.0.7",
     "typescript": "^5.1.3",
-    "whatsapp-web.js": "^1.21.0"
+    "whatsapp-web.js": "^1.26.0"
   },
   "type": "module",
   "main": "src/index.ts",
@@ -23,7 +24,7 @@
     "@typescript-eslint/eslint-plugin": "^5.60.1",
     "@typescript-eslint/parser": "^5.60.1",
     "eslint": "^8.43.0",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.9.2",
     "tsx": "^3.12.7"
   }
 }

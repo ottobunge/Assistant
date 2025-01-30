@@ -33,7 +33,7 @@ export default class AgentManager implements AgentManagerInterface {
         if(!this.agents?.[conversationId] === undefined) {
             this.agents[conversationId] = {};
         }
-        const config = new AgentConfig(0.7, 0.1, 1.18, 0);
+        const config = new AgentConfig(1.25, 1, 1.18, 0);
         this.agents[conversationId][agentId] = new GPT(new Memory(`${conversationId}-${agentId}`, initialPrompt), config);
         this.writeToFile();
         return this.agents[conversationId][agentId];

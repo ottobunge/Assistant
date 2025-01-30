@@ -8,9 +8,11 @@ const functionTriggerTemplateMatcher = (template: string, text: string) => {
     const textParts = text.toLocaleLowerCase().split(' ');
     if(textParts.length >= templateParts.length) {
         return templateParts.every((part, index) => {
+            // Matches against a parameter
             if(part.startsWith('<') && part.endsWith('>')) {
                 return true;
             }
+            // Matches against a literal in /assistant <text> /assistant is the literal <text> is the parameter
             return part === textParts[index];
         });
     }

@@ -34,18 +34,25 @@ availableCommands.push({
         const queryAgent = agentManager.getAgent(conversationId, parameters.agentId);
         const query = await makeMessageString(message, parameters.text);
         let participants: string[] = [];
+        console.log({isGroup: chat.isGroup});
+        const groupCHAT = chat as WAWebJS.GroupChat;
+        console.log({groupChat: Object.keys(groupCHAT)});
+        console.log({participants: groupCHAT.participants});
+        console.log({chatKeys: Object.keys(chat)});
         if(chat.isGroup){
+            console.log("Getting group chat participants")
             const groupCHAT = chat as WAWebJS.GroupChat;
             participants = await Promise.all(groupCHAT.participants.map(async participant => {
                 const contact = (await client.getContactById(participant.id._serialized));
                 const name = (contact.name || contact.pushname || contact.shortName || participant.id._serialized).trim();
+                console.log({foundName: name});
                 const isMe = name === 'Yo' || contact?.number?.includes(Config.OWN_PHONE_NUMBER) || contact.isMe;
                 if(isMe) {
                     return Config.OWNER;
                 }
                 return name;
             }));
-        }else {
+        } else {
             const contact = await message.getContact();
             participants = [contact.pushname || contact.name || contact.shortName || contact.id._serialized];
         }
