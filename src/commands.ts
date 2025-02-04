@@ -648,7 +648,10 @@ async function getCivitaiInfo(hash: string): Promise<string> {
             `Version: ${modelData.name}`,
             `Base Model: ${modelData.baseModel}`,
             `Rating: ${modelData.stats?.rating.toFixed(1) || 'N/A'}`,
-            `Description: ${modelData.description || 'No description available'}`
+            `Description: ${modelData.description || 'No description available'}`,
+            `Training Status: ${modelData.trainingStatus || 'N/A'}`,
+            `Trained Words: ${modelData.trainedWords.join(', ') || 'N/A'}`,
+            `Training Details: ${modelData.trainingDetails || 'N/A'}`
         ].join('\n');
         
     } catch (error) {
@@ -806,13 +809,13 @@ type CivitaiModelVersion = {
   status: string;
   publishedAt: string;
   trainedWords: string[];
-  trainingStatus: null;
-  trainingDetails: null;
+  trainingStatus: string | null;
+  trainingDetails: string | null;
   baseModel: string;
   baseModelType: string;
-  earlyAccessEndsAt: null;
-  earlyAccessConfig: null;
-  description: null | string;
+  earlyAccessEndsAt: string | null;
+  earlyAccessConfig: string | null;
+  description: string | null;
   uploadType: string;
   usageControl: string;
   air: string;
