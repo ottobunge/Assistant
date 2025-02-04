@@ -13,6 +13,7 @@ import path from 'path';
 import fs from 'fs-extra';
 import StableDiffusionApi from './stable_diffusion/api.ts';
 import sharp from "sharp";
+import axios from 'axios';
 
 async function makeMessageString  (message: WAWebJS.Message, body: string) {
     const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
@@ -634,16 +635,46 @@ availableCommands.push({
         }
     }
 } as CommandMatcher<COMMAND_TYPES.SD_SET_MODEL>);
+
+async function getCivitaiInfo(hash: string): Promise<string> {
+    try {
+        const response = await axios.get<CivitaiModelVersion>(
+            `https://civitai.com/api/v1/model-versions/by-hash/${hash}`
+        );
+        const modelData = response.data;
+        
+        return [
+            `CivitAI Name: ${modelData.model?.name || 'Unknown'}`,
+            `Version: ${modelData.name}`,
+            `Base Model: ${modelData.baseModel}`,
+            `Rating: ${modelData.stats?.rating.toFixed(1) || 'N/A'}`,
+            `Description: ${modelData.description || 'No description available'}`
+        ].join('\n');
+        
+    } catch (error) {
+        console.error('CivitAI API error:', error);
+        return '[Could not fetch CivitAI info]';
+    }
+}
+
 availableCommands.push({
     command: COMMAND_TYPES.SD_CURRENT_MODEL,
     template: '/sd-models current',
     description: "Show current Stable Diffusion model",
     getCommandParameters: () => undefined,
     trigger: async (_, __, message) => {
-
         try {
             const currentModel = await StableDiffusionApi.getCurrentModel();
-            message.reply(`🤖:\nCurrent SD Model: ${currentModel}`);
+            const models = await StableDiffusionApi.getSdModels();
+            const model = models.find(m => m.model_name === currentModel.split(' ')[0].split('.safetensors')[0]);
+            const modelHash = model?.hash;
+            
+            let civitaiInfo = '';
+            if (modelHash) {
+                civitaiInfo = await getCivitaiInfo(modelHash);
+            }
+
+            message.reply(`🤖:\nCurrent SD Model: ${currentModel}\n${civitaiInfo}`);
             return true;
         } catch (error) {
             message.reply("🤖:\nFailed to fetch current model");
@@ -651,6 +682,7 @@ availableCommands.push({
         }
     }
 } as CommandMatcher<COMMAND_TYPES.SD_CURRENT_MODEL>);
+
 availableCommands.push({
     command: COMMAND_TYPES.SD_IMG2IMG,
     template: ['/img2img <denoising_strength> <...prompt>'],
@@ -727,5 +759,139 @@ availableCommands.push({
         return true;
     }
 } as CommandMatcher<COMMAND_TYPES.SD_IMG2IMG>);
+
+availableCommands.push({
+    command: COMMAND_TYPES.SD_QUERY_MODEL,
+    template: '/sd-models query <modelName>',
+    description: "Query CivitAI information for a specific model",
+    getCommandParameters: (text: string) => {
+        const textParts = text.split(' ');
+        return { modelName: textParts.slice(2).join(' ') };
+    },
+    trigger: async (parameters, _, message) => {
+        try {
+            const models = await StableDiffusionApi.getSdModels();
+            const model = models.find(m => 
+                m.model_name.toLowerCase().includes(parameters.modelName.toLowerCase())
+            );
+
+            if (!model) {
+                message.reply(`🤖:\nModel "${parameters.modelName}" not found`);
+                return false;
+            }
+
+            let civitaiInfo = '';
+            if (model.hash) {
+                civitaiInfo = `Model: ${model.model_name}\n${await getCivitaiInfo(model.hash)}`;
+            } else {
+                civitaiInfo = '[No hash available for this model]';
+            }
+
+            message.reply(`🤖:\nModel Information:\n${civitaiInfo}`);
+            return true;
+        } catch (error) {
+            console.error('Model query error:', error);
+            message.reply("🤖:\nFailed to query model information");
+            return false;
+        }
+    }
+} as CommandMatcher<COMMAND_TYPES.SD_QUERY_MODEL>);
+
+type CivitaiModelVersion = {
+  id: number;
+  modelId: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  status: string;
+  publishedAt: string;
+  trainedWords: string[];
+  trainingStatus: null;
+  trainingDetails: null;
+  baseModel: string;
+  baseModelType: string;
+  earlyAccessEndsAt: null;
+  earlyAccessConfig: null;
+  description: null | string;
+  uploadType: string;
+  usageControl: string;
+  air: string;
+  stats: CivitaiModelStats;
+  model: {
+    name: string;
+    type: string;
+    nsfw: boolean;
+    poi: boolean;
+  };
+  files: CivitaiModelFile[];
+  images: CivitaiModelImage[];
+  downloadUrl: string;
+};
+
+type CivitaiModelStats = {
+  downloadCount: number;
+  ratingCount: number;
+  rating: number;
+  thumbsUpCount: number;
+};
+
+type CivitaiModelFile = {
+  id: number;
+  sizeKB: number;
+  name: string;
+  type: string;
+  pickleScanResult: string;
+  pickleScanMessage: string | null;
+  virusScanResult: string;
+  virusScanMessage: null;
+  scannedAt: string;
+  metadata: {
+    format: string;
+    size: string;
+    fp: string;
+  };
+  hashes: Record<string, string>;
+  primary: boolean;
+  downloadUrl: string;
+};
+
+type CivitaiModelImage = {
+  url: string;
+  nsfwLevel: number;
+  width: number;
+  height: number;
+  hash: string;
+  type: string;
+  metadata: {
+    hash: string;
+    size: number;
+    width: number;
+    height: number;
+  };
+  meta: {
+    VAE?: string;
+    Size?: string;
+    seed?: number;
+    Model?: string;
+    steps?: number;
+    hashes?: Record<string, string>;
+    prompt?: string;
+    Version?: string;
+    sampler?: string;
+    cfgScale?: number;
+    clipSkip?: number;
+    resources?: Array<{
+      hash: string;
+      name: string;
+      type: string;
+    }>;
+    [key: string]: any; // For additional dynamic properties
+  };
+  availability: string;
+  hasMeta: boolean;
+  hasPositivePrompt: boolean;
+  onSite: boolean;
+  remixOfId: null;
+};
 
 export default availableCommands;

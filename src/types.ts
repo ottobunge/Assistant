@@ -29,7 +29,8 @@ export enum COMMAND_TYPES {
     SD_LIST_MODELS = 'SD_LIST_MODELS',
     SD_SET_MODEL = 'SD_SET_MODEL',
     SD_CURRENT_MODEL = 'SD_CURRENT_MODEL',
-    SD_IMG2IMG = 'SD_IMG2IMG'
+    SD_IMG2IMG = 'SD_IMG2IMG',
+    SD_QUERY_MODEL = 'SD_QUERY_MODEL'
 }
 export interface StableDiffusionConfig {
     id: string;
@@ -107,6 +108,9 @@ export interface CommandParameters {
         cfgScale?: number;
         width?: number;
         height?: number;
+    };
+    [COMMAND_TYPES.SD_QUERY_MODEL]: {
+        modelName: string;
     };
 }
 

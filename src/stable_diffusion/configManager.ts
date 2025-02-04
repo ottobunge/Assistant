@@ -73,7 +73,7 @@ export class StableDiffusionConfigManager {
                 steps: 40,
                 width: 1024,
                 height: 1024,
-                cfgScale: 4,
+                cfgScale: 5,
                 negativePrompt: '',
                 stylePrompt: 'SCORE_9,SCORE_8_UP,SCORE_8,SCORE_7_UP,SCORE_7'
             });

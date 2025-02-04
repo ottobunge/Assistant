@@ -9,6 +9,7 @@ export enum ENV_VARS {
     DEFAULT_AGENT_ID = 'DEFAULT_AGENT_ID',
     SD_API_HOST = 'SD_API_HOST',
     OPENAI_API_HOST = 'OPENAI_API_HOST',
+    SD_MODELS_PATH = 'SD_MODELS_PATH',
 }
 
 const defaults: {
