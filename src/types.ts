@@ -30,7 +30,8 @@ export enum COMMAND_TYPES {
     SD_SET_MODEL = 'SD_SET_MODEL',
     SD_CURRENT_MODEL = 'SD_CURRENT_MODEL',
     SD_IMG2IMG = 'SD_IMG2IMG',
-    SD_QUERY_MODEL = 'SD_QUERY_MODEL'
+    SD_QUERY_MODEL = 'SD_QUERY_MODEL',
+    SD_INTERROGATE = 'SD_INTERROGATE'
 }
 export interface StableDiffusionConfig {
     id: string;
@@ -111,6 +112,9 @@ export interface CommandParameters {
     };
     [COMMAND_TYPES.SD_QUERY_MODEL]: {
         modelName: string;
+    };
+    [COMMAND_TYPES.SD_INTERROGATE]: {
+        interrogator: 'deepbooru' | 'clip';
     };
 }
 

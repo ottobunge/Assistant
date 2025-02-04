@@ -727,7 +727,7 @@ availableCommands.push({
                        StableDiffusionConfigManager.getDefaultConfig(chat.id._serialized);
         let imgBuffer = Buffer.from(media.data, 'base64');
         const initImage = sharp(imgBuffer);
-
+        const metadata = await initImage.metadata();
         message.reply("🤖:\nGenerating image...");
         try {
             const sd = new StableDiffusion();
@@ -737,8 +737,8 @@ availableCommands.push({
                 parameters.denoisingStrength,
                 config.negativePrompt,
                 parameters.steps || config.steps,
-                parameters.width || config.width,
-                parameters.height || config.height,
+                parameters.width || metadata.width,
+                parameters.height || metadata.height,
                 parameters.cfgScale || config.cfgScale
             );
 
@@ -799,6 +799,45 @@ availableCommands.push({
         }
     }
 } as CommandMatcher<COMMAND_TYPES.SD_QUERY_MODEL>);
+
+availableCommands.push({
+    command: COMMAND_TYPES.SD_INTERROGATE,
+    template: ['/interrogate <deepbooru|clip>'],
+    description: "Analyze image and generate tags/description",
+    getCommandParameters: (text: string) => {
+        const textParts = text.split(' ');
+        const interrogator = textParts[1].toLowerCase() as 'deepbooru' | 'clip';
+        
+        return {
+            interrogator
+        };
+    },
+    trigger: async (parameters, _, message) => {
+        if (!message.hasMedia) {
+            message.reply("🤖:\nPlease attach an image with this command!");
+            return false;
+        }
+
+        try {
+            const media = await message.downloadMedia();
+            const imgBuffer = Buffer.from(media.data, 'base64');
+            const image = sharp(imgBuffer);
+
+            message.reply("🤖:\nAnalyzing image...");
+            
+            const result = await StableDiffusionApi.interrogate(image, parameters.interrogator);
+
+            const formattedResult = result.info;
+            message.reply(`🤖:\nAnalysis results (${parameters.interrogator}):\n${formattedResult}`);
+            return true;
+            
+        } catch (error) {
+            console.error('Interrogate error:', error);
+            message.reply("🤖:\nFailed to analyze image");
+            return false;
+        }
+    }
+} as CommandMatcher<COMMAND_TYPES.SD_INTERROGATE>);
 
 type CivitaiModelVersion = {
   id: number;
