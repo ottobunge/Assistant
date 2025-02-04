@@ -1,0 +1,13 @@
+diff --git a/node_modules/stable-diffusion-api/dist/lib/StableDiffusionApi.js b/node_modules/stable-diffusion-api/dist/lib/StableDiffusionApi.js
+index efb62a9..e2e0d11 100644
+--- a/node_modules/stable-diffusion-api/dist/lib/StableDiffusionApi.js
++++ b/node_modules/stable-diffusion-api/dist/lib/StableDiffusionApi.js
+@@ -457,7 +457,7 @@ class StableDiffusionApi {
+     setModel(name, findClosest = true) {
+         return __awaiter(this, void 0, void 0, function* () {
+             const models = yield this.getSdModels();
+-            const modelNames = models.map((model) => model.name);
++            const modelNames = models.map((model) => model.model_name);
+             let foundModel = null;
+             if (modelNames.includes(name)) {
+                 foundModel = name;

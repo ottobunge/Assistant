@@ -507,10 +507,25 @@ availableCommands.push({
     },
     trigger: async (parameters, _, message) => {
         const chat = await message.getChat();
+        
+        // Filter out undefined updates
+        const filteredUpdates = {
+            steps: parameters.updates.steps,
+            width: parameters.updates.width,
+            height: parameters.updates.height,
+            cfgScale: parameters.updates.cfgScale,
+            negativePrompt: parameters.updates.negativePrompt
+        };
+        
+        // Remove undefined values
+        const cleanUpdates = Object.fromEntries(
+            Object.entries(filteredUpdates).filter(([_, v]) => v !== undefined)
+        );
+
         const updatedConfig = StableDiffusionConfigManager.updateConfig(
             chat.id._serialized,
             parameters.configId,
-            parameters.updates
+            cleanUpdates
         );
         message.reply(`🤖:\nUpdated config ${parameters.configId}:\n${
             Object.entries(updatedConfig)
@@ -565,6 +580,7 @@ availableCommands.push({
         }
 
         try {
+            await StableDiffusionApi.refreshCheckpoints();
             const models = await StableDiffusionApi.getSdModels();
             const modelList = models.map(m => m.model_name).join('\n');
             message.reply(`🤖:\nAvailable SD Models:\n${modelList}`);
@@ -581,7 +597,7 @@ availableCommands.push({
     description: "[Owner] Set the active Stable Diffusion model",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
-        return { modelName: textParts.slice(3).join(' ') };
+        return { modelName: textParts.slice(2).join(' ') };
     },
     trigger: async (parameters, _, message) => {
         const contact = await message.getContact();
@@ -596,7 +612,7 @@ availableCommands.push({
             message.reply(`🤖:\nModel set to: ${parameters.modelName}`);
             return true;
         } catch (error) {
-            message.reply(`🤖:\nFailed to set model: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            message.reply(`🤖:\nFailed to set model to ${parameters.modelName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
             return false;
         }
     }
@@ -604,15 +620,9 @@ availableCommands.push({
 availableCommands.push({
     command: COMMAND_TYPES.SD_CURRENT_MODEL,
     template: '/sd-models current',
-    description: "[Owner] Show current Stable Diffusion model",
+    description: "Show current Stable Diffusion model",
     getCommandParameters: () => undefined,
     trigger: async (_, __, message) => {
-        const contact = await message.getContact();
-        const isOwner = contact.number.includes(Config.OWN_PHONE_NUMBER);
-        if (!isOwner) {
-            message.reply("🤖:\nThis command is only available for the owner!");
-            return false;
-        }
 
         try {
             const currentModel = await StableDiffusionApi.getCurrentModel();

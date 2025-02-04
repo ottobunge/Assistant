@@ -12,7 +12,6 @@ console.log('Client created!');
 console.log('Initializing...');
 const processMessage = (message: WAWebJS.Message) => {
     if (!seenMessages.has(message.id)) {
-        console.log(JSON.stringify(message, null, 2));
         seenMessages.add(message.id);
         cui.processMessage(message);
     }

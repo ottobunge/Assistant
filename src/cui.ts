@@ -42,16 +42,14 @@ export default class ChatUserInterface {
     }
 
     public async processMessage(message: WAWebJS.Message) {
-        const body = message.body.toLowerCase();
         const chat = await message.getChat();
         const conversationId = (chat).id._serialized;
         const agents = this.agentManager.getAgents(conversationId);
-        const command = this.getCommand(body, agents);
+        const command = this.getCommand(message.body, agents);
         if(command === undefined) {
             return;
         }
-        console.log(`🤖:\n${JSON.stringify(command, null, 2)}`)
-        const parameters = command.getCommandParameters(body, agents);
+        const parameters = command.getCommandParameters(message.body, agents);
         command.trigger(parameters, this.agentManager, message);
     }
 }
