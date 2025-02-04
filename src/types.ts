@@ -25,7 +25,10 @@ export enum COMMAND_TYPES {
     SD_CREATE_CONFIG = 'SD_CREATE_CONFIG',
     SD_LIST_CONFIGS = 'SD_LIST_CONFIGS',
     SD_UPDATE_CONFIG = 'SD_UPDATE_CONFIG',
-    SD_SHOW_CONFIG = 'SD_SHOW_CONFIG'
+    SD_SHOW_CONFIG = 'SD_SHOW_CONFIG',
+    SD_LIST_MODELS = 'SD_LIST_MODELS',
+    SD_SET_MODEL = 'SD_SET_MODEL',
+    SD_CURRENT_MODEL = 'SD_CURRENT_MODEL'
 }
 
 export interface CommandParameters {
@@ -84,6 +87,11 @@ export interface CommandParameters {
     [COMMAND_TYPES.SD_SHOW_CONFIG]: {
         configId: string;
     };
+    [COMMAND_TYPES.SD_LIST_MODELS]: void;
+    [COMMAND_TYPES.SD_SET_MODEL]: {
+        modelName: string;
+    };
+    [COMMAND_TYPES.SD_CURRENT_MODEL]: void;
 }
 
 export interface Command<CommandType extends COMMAND_TYPES> {

@@ -7,6 +7,10 @@ import { ENV_VARS } from './config.ts';
 import { MessageMedia } from 'whatsapp-web.js';
 import StableDiffusion from './stable_diffusion/index.ts';
 import StableDiffusionConfigManager from './stable_diffusion/configManager.ts';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import fs from 'fs-extra';
+import StableDiffusionApi from './stable_diffusion/api.ts';
 
 async function makeMessageString  (message: WAWebJS.Message, body: string) {
     const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
@@ -411,11 +415,16 @@ availableCommands.push({
                 config.cfgScale
             );
 
-            const image = response.images[0];
-            const imageFilePath = './to-send.png';
-            if (image) {
-                await image.toFile(imageFilePath);
-                const media = await MessageMedia.fromFilePath(imageFilePath);
+            if (response?.images?.[0]) {
+                const chat = await message.getChat();
+                const outputDir = path.join('output', chat.id._serialized);
+                await fs.ensureDir(outputDir);
+                
+                const imageId = uuidv4();
+                const imagePath = path.join(outputDir, `${imageId}.png`);
+                
+                await response.images[0].toFile(imagePath);
+                const media = await MessageMedia.fromFilePath(imagePath);
                 message.reply(media);
             } else {
                 message.reply("🤖:\nNo image generated");
@@ -542,5 +551,78 @@ availableCommands.push({
         return true;
     }
 } as CommandMatcher<COMMAND_TYPES.SD_SHOW_CONFIG>);
+availableCommands.push({
+    command: COMMAND_TYPES.SD_LIST_MODELS,
+    template: '/sd-models list',
+    description: "[Owner] List available Stable Diffusion models",
+    getCommandParameters: () => undefined,
+    trigger: async (_, __, message) => {
+        const contact = await message.getContact();
+        const isOwner = contact.number.includes(Config.OWN_PHONE_NUMBER);
+        if (!isOwner) {
+            message.reply("🤖:\nThis command is only available for the owner!");
+            return false;
+        }
+
+        try {
+            const models = await StableDiffusionApi.getSdModels();
+            const modelList = models.map(m => m.model_name).join('\n');
+            message.reply(`🤖:\nAvailable SD Models:\n${modelList}`);
+            return true;
+        } catch (error) {
+            message.reply("🤖:\nFailed to fetch models");
+            return false;
+        }
+    }
+} as CommandMatcher<COMMAND_TYPES.SD_LIST_MODELS>);
+availableCommands.push({
+    command: COMMAND_TYPES.SD_SET_MODEL,
+    template: '/sd-models set <modelName>',
+    description: "[Owner] Set the active Stable Diffusion model",
+    getCommandParameters: (text: string) => {
+        const textParts = text.split(' ');
+        return { modelName: textParts.slice(3).join(' ') };
+    },
+    trigger: async (parameters, _, message) => {
+        const contact = await message.getContact();
+        const isOwner = contact.number.includes(Config.OWN_PHONE_NUMBER);
+        if (!isOwner) {
+            message.reply("🤖:\nThis command is only available for the owner!");
+            return false;
+        }
+
+        try {
+            await StableDiffusionApi.setModel(parameters.modelName, true);
+            message.reply(`🤖:\nModel set to: ${parameters.modelName}`);
+            return true;
+        } catch (error) {
+            message.reply(`🤖:\nFailed to set model: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            return false;
+        }
+    }
+} as CommandMatcher<COMMAND_TYPES.SD_SET_MODEL>);
+availableCommands.push({
+    command: COMMAND_TYPES.SD_CURRENT_MODEL,
+    template: '/sd-models current',
+    description: "[Owner] Show current Stable Diffusion model",
+    getCommandParameters: () => undefined,
+    trigger: async (_, __, message) => {
+        const contact = await message.getContact();
+        const isOwner = contact.number.includes(Config.OWN_PHONE_NUMBER);
+        if (!isOwner) {
+            message.reply("🤖:\nThis command is only available for the owner!");
+            return false;
+        }
+
+        try {
+            const currentModel = await StableDiffusionApi.getCurrentModel();
+            message.reply(`🤖:\nCurrent SD Model: ${currentModel}`);
+            return true;
+        } catch (error) {
+            message.reply("🤖:\nFailed to fetch current model");
+            return false;
+        }
+    }
+} as CommandMatcher<COMMAND_TYPES.SD_CURRENT_MODEL>);
 
 export default availableCommands;
