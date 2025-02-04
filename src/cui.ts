@@ -22,7 +22,6 @@ const functionTriggerTemplateMatcher = (template: string, text: string) => {
                 return true;
             }
             if(part.startsWith('[') && part.endsWith(']')) {
-                console.log({part, textParts});
                 return true;
             }
             // Matches against a literal in /assistant <text> /assistant is the literal <text> is the parameter

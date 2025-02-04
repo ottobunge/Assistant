@@ -2,6 +2,7 @@ import Config from './config.ts';
 import WAWebJS from'whatsapp-web.js';
 import { client } from './wapp.ts';
 import { COMMAND_TYPES, CommandMatcher } from './types.ts';
+import type { CommandParameters } from './types.ts';
 import GPT from 'gpt.ts';
 import { ENV_VARS } from './config.ts';
 import { MessageMedia } from 'whatsapp-web.js';
@@ -44,18 +45,13 @@ availableCommands.push({
         const queryAgent = agentManager.getAgent(conversationId, parameters.agentId);
         const query = await makeMessageString(message, parameters.text);
         let participants: string[] = [];
-        console.log({isGroup: chat.isGroup});
         const groupCHAT = chat as WAWebJS.GroupChat;
-        console.log({groupChat: Object.keys(groupCHAT)});
-        console.log({participants: groupCHAT.participants});
-        console.log({chatKeys: Object.keys(chat)});
         if(chat.isGroup){
             console.log("Getting group chat participants")
             const groupCHAT = chat as WAWebJS.GroupChat;
             participants = await Promise.all(groupCHAT.participants.map(async participant => {
                 const contact = (await client.getContactById(participant.id._serialized));
                 const name = (contact.name || contact.pushname || contact.shortName || participant.id._serialized).trim();
-                console.log({foundName: name});
                 const isMe = name === 'Yo' || contact?.number?.includes(Config.OWN_PHONE_NUMBER) || contact.isMe;
                 if(isMe) {
                     return Config.OWNER;
@@ -380,14 +376,29 @@ availableCommands.push({
 availableCommands.push({
     command: COMMAND_TYPES.STABLE_DIFFUSION,
     template: ['/txt2img <configId> <...prompt>', '/txt2img <...prompt>'],
-    description: "Generate image using Stable Diffusion with optional config",
+    description: "Generate image using Stable Diffusion (add params like steps=20 cfg=7 width=512 height=512)",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
         const hasConfig = textParts.length > 1 && !textParts[1].startsWith('-');
         
+        let promptParts = hasConfig ? textParts.slice(2) : textParts.slice(1);
+        const params: Omit<CommandParameters[COMMAND_TYPES.STABLE_DIFFUSION], 'configId' | 'prompt'> = {};
+
+        // Filter out and parse parameters
+        promptParts = promptParts.filter(part => {
+            const match = part.match(/(steps|cfg|width|height)=(\d+)/);
+            if (match) {
+                const key = match[1] as keyof typeof params;
+                params[key] = Number(match[2]);
+                return false;
+            }
+            return true;
+        });
+
         return {
             configId: hasConfig ? textParts[1] : 'default',
-            prompt: hasConfig ? textParts.slice(2).join(' ') : textParts.slice(1).join(' ')
+            prompt: promptParts.join(' '),
+            ...params
         };
     },
     trigger: async (parameters, _, message) => {
@@ -395,7 +406,6 @@ availableCommands.push({
         const config = StableDiffusionConfigManager.getConfig(chat.id._serialized, parameters.configId) || 
                        StableDiffusionConfigManager.getDefaultConfig(chat.id._serialized);
         
-
         if (!Config.SD_API_HOST) {
             message.reply("🤖:\nStable Diffusion API host not configured!");
             return false;
@@ -411,10 +421,10 @@ availableCommands.push({
             const response = await sd.txt2img(
                 prompt,
                 config.negativePrompt,
-                config.steps,
-                config.width,
-                config.height,
-                config.cfgScale
+                parameters.steps || config.steps,
+                parameters.width || config.width,
+                parameters.height || config.height,
+                parameters.cfgScale || config.cfgScale
             );
 
             if (response?.images?.[0]) {
@@ -644,14 +654,30 @@ availableCommands.push({
 availableCommands.push({
     command: COMMAND_TYPES.SD_IMG2IMG,
     template: ['/img2img <denoising_strength> <...prompt>'],
-    description: "Generate image from image using Stable Diffusion",
+    description: "Generate image from image (add params like steps=20 cfg=7 width=512 height=512)",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
         const denoisingStrength = parseFloat(textParts[1]);
+        
+        let promptParts = textParts.slice(2);
+        const params: Omit<CommandParameters[COMMAND_TYPES.STABLE_DIFFUSION], 'configId' | 'prompt'> = {};
+
+        // Filter out and parse parameters
+        promptParts = promptParts.filter(part => {
+            const match = part.match(/(steps|cfg|width|height)=(\d+)/);
+            if (match) {
+                const key = match[1] as keyof typeof params;
+                params[key] = Number(match[2]);
+                return false;
+            }
+            return true;
+        });
+
         return {
             configId: 'default',
             denoisingStrength: isNaN(denoisingStrength) ? 0.75 : denoisingStrength,
-            prompt: textParts.slice(2).join(' ')
+            prompt: promptParts.join(' '),
+            ...params
         };
     },
     trigger: async (parameters, _, message) => {
@@ -675,10 +701,10 @@ availableCommands.push({
                 initImage,
                 parameters.denoisingStrength,
                 config.negativePrompt,
-                config.steps,
-                config.width,
-                config.height,
-                config.cfgScale
+                parameters.steps || config.steps,
+                parameters.width || config.width,
+                parameters.height || config.height,
+                parameters.cfgScale || config.cfgScale
             );
 
             if (response?.images?.[0]) {

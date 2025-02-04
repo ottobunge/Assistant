@@ -80,6 +80,10 @@ export interface CommandParameters {
     [COMMAND_TYPES.STABLE_DIFFUSION]: {
         configId: string;
         prompt: string;
+        steps?: number;
+        cfgScale?: number;
+        width?: number;
+        height?: number;
     };
     [COMMAND_TYPES.SD_CREATE_CONFIG]: {configId: string} & Omit<StableDiffusionConfig, 'id'>;
     [COMMAND_TYPES.SD_LIST_CONFIGS]: void;
@@ -99,6 +103,10 @@ export interface CommandParameters {
         configId: string;
         denoisingStrength: number;
         prompt: string;
+        steps?: number;
+        cfgScale?: number;
+        width?: number;
+        height?: number;
     };
 }
 
