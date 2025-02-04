@@ -86,6 +86,7 @@ export interface CommandParameters {
         cfgScale?: number;
         width?: number;
         height?: number;
+        negativePrompt?: string;
     };
     [COMMAND_TYPES.SD_CREATE_CONFIG]: {configId: string} & Omit<StableDiffusionConfig, 'id'>;
     [COMMAND_TYPES.SD_LIST_CONFIGS]: void;
@@ -109,6 +110,7 @@ export interface CommandParameters {
         cfgScale?: number;
         width?: number;
         height?: number;
+        negativePrompt?: string;
     };
     [COMMAND_TYPES.SD_QUERY_MODEL]: {
         modelName: string;

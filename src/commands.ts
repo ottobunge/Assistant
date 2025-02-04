@@ -13,7 +13,8 @@ import path from 'path';
 import fs from 'fs-extra';
 import StableDiffusionApi from './stable_diffusion/api.ts';
 import sharp from "sharp";
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
+import { AxiosApiRawResponse } from 'stable-diffusion-api';
 
 async function makeMessageString  (message: WAWebJS.Message, body: string) {
     const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
@@ -376,29 +377,48 @@ availableCommands.push({
 } as CommandMatcher<COMMAND_TYPES.PRINT_CONFIG>);
 availableCommands.push({
     command: COMMAND_TYPES.STABLE_DIFFUSION,
-    template: ['/txt2img <configId> <...prompt>', '/txt2img <...prompt>'],
-    description: "Generate image using Stable Diffusion (add params like steps=20 cfg=7 width=512 height=512)",
+    template: ['/sd <configId> <...prompt>', '/sd <...prompt>'],
+    description: "Generate image from text",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
-        const hasConfig = textParts.length > 1 && !textParts[1].startsWith('-');
+        const configId = textParts[1] === 'default' ? 'default' : textParts[1];
         
-        let promptParts = hasConfig ? textParts.slice(2) : textParts.slice(1);
-        const params: Omit<CommandParameters[COMMAND_TYPES.STABLE_DIFFUSION], 'configId' | 'prompt'> = {};
+        let promptParts = textParts.slice(textParts[1] === 'default' ? 2 : 1);
+        const params: any = {};
+        let negativePromptParts: string[] = [];
+        let parsingNegative = false;
 
-        // Filter out and parse parameters
         promptParts = promptParts.filter(part => {
+            if (part === '-neg' || part === '--negative') {
+                parsingNegative = true;
+                return false;
+            }
+
+            if (parsingNegative) {
+                if (part.match(/^(steps|cfg|width|height)=/)) {
+                    parsingNegative = false;
+                    const match = part.match(/(\w+)=(\d+)/);
+                    if (match) {
+                        params[match[1]] = Number(match[2]);
+                    }
+                    return false;
+                }
+                negativePromptParts.push(part);
+                return false;
+            }
+
             const match = part.match(/(steps|cfg|width|height)=(\d+)/);
             if (match) {
-                const key = match[1] as keyof typeof params;
-                params[key] = Number(match[2]);
+                params[match[1]] = Number(match[2]);
                 return false;
             }
             return true;
         });
 
         return {
-            configId: hasConfig ? textParts[1] : 'default',
+            configId,
             prompt: promptParts.join(' '),
+            negativePrompt: negativePromptParts.join(' ') || undefined,
             ...params
         };
     },
@@ -421,7 +441,7 @@ availableCommands.push({
             const sd = new StableDiffusion();
             const response = await sd.txt2img(
                 prompt,
-                config.negativePrompt,
+                parameters.negativePrompt || config.negativePrompt,
                 parameters.steps || config.steps,
                 parameters.width || config.width,
                 parameters.height || config.height,
@@ -429,7 +449,6 @@ availableCommands.push({
             );
 
             if (response?.images?.[0]) {
-                const chat = await message.getChat();
                 const outputDir = path.join('output', chat.id._serialized);
                 await fs.ensureDir(outputDir);
                 
@@ -438,7 +457,17 @@ availableCommands.push({
                 
                 await response.images[0].toFile(imagePath);
                 const media = await MessageMedia.fromFilePath(imagePath);
-                message.reply(media);
+                
+                // Add parameters to caption
+                const parametersText = [
+                    `Prompt: ${prompt}`,
+                    `Negative: ${parameters.negativePrompt || config.negativePrompt}`,
+                    `Steps: ${parameters.steps || config.steps}`,
+                    `CFG: ${parameters.cfgScale || config.cfgScale}`,
+                    `Size: ${parameters.width || config.width}x${parameters.height || config.height}`
+                ].join('\n');
+
+                message.reply(media, undefined, { caption: parametersText });
             } else {
                 message.reply("🤖:\nNo image generated");
             }
@@ -689,20 +718,38 @@ availableCommands.push({
 availableCommands.push({
     command: COMMAND_TYPES.SD_IMG2IMG,
     template: ['/img2img <denoising_strength> <...prompt>'],
-    description: "Generate image from image (add params like steps=20 cfg=7 width=512 height=512)",
+    description: "Generate image from image (add params like steps=20 cfg=7 width=512 height=512 -neg 'negative prompt')",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
         const denoisingStrength = parseFloat(textParts[1]);
         
         let promptParts = textParts.slice(2);
-        const params: Omit<CommandParameters[COMMAND_TYPES.STABLE_DIFFUSION], 'configId' | 'prompt'> = {};
+        const params: any = {};
+        let negativePromptParts: string[] = [];
+        let parsingNegative = false;
 
-        // Filter out and parse parameters
         promptParts = promptParts.filter(part => {
+            if (part === '-neg' || part === '--negative') {
+                parsingNegative = true;
+                return false;
+            }
+
+            if (parsingNegative) {
+                if (part.match(/^(steps|cfg|width|height)=/)) {
+                    parsingNegative = false;
+                    const match = part.match(/(\w+)=(\d+)/);
+                    if (match) {
+                        params[match[1]] = Number(match[2]);
+                    }
+                    return false;
+                }
+                negativePromptParts.push(part);
+                return false;
+            }
+
             const match = part.match(/(steps|cfg|width|height)=(\d+)/);
             if (match) {
-                const key = match[1] as keyof typeof params;
-                params[key] = Number(match[2]);
+                params[match[1]] = Number(match[2]);
                 return false;
             }
             return true;
@@ -712,6 +759,7 @@ availableCommands.push({
             configId: 'default',
             denoisingStrength: isNaN(denoisingStrength) ? 0.75 : denoisingStrength,
             prompt: promptParts.join(' '),
+            negativePrompt: negativePromptParts.join(' ') || undefined,
             ...params
         };
     },
@@ -762,10 +810,10 @@ availableCommands.push({
                 parameters.prompt,
                 resizedImage,
                 parameters.denoisingStrength,
-                config.negativePrompt,
+                parameters.negativePrompt || config.negativePrompt,
                 parameters.steps || config.steps,
-                targetWidth, // Use calculated width
-                targetHeight, // Use calculated height
+                targetWidth,
+                targetHeight,
                 parameters.cfgScale || config.cfgScale
             );
 
@@ -778,7 +826,18 @@ availableCommands.push({
                 
                 await response.images[0].toFile(imagePath);
                 const replyMedia = await MessageMedia.fromFilePath(imagePath);
-                message.reply(replyMedia);
+                
+                // Add parameters to caption
+                const parametersText = [
+                    `Prompt: ${parameters.prompt}`,
+                    `Negative: ${parameters.negativePrompt || config.negativePrompt}`,
+                    `Steps: ${parameters.steps || config.steps}`,
+                    `CFG: ${parameters.cfgScale || config.cfgScale}`,
+                    `Size: ${targetWidth}x${targetHeight}`,
+                    `Denoising: ${parameters.denoisingStrength}`
+                ].join('\n');
+
+                message.reply(replyMedia, undefined, { caption: parametersText });
             } else {
                 message.reply("🤖:\nNo image generated");
             }
@@ -829,7 +888,7 @@ availableCommands.push({
 
 availableCommands.push({
     command: COMMAND_TYPES.SD_INTERROGATE,
-    template: ['/interrogate <deepbooru|clip>'],
+    template: ['/sd-interrogate <deepbooru|clip>'],
     description: "Analyze image and generate tags/description",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
@@ -852,10 +911,10 @@ availableCommands.push({
 
             message.reply("🤖:\nAnalyzing image...");
             
-            const result = await StableDiffusionApi.interrogate(image, parameters.interrogator);
+            const response = await StableDiffusionApi.interrogate(image, parameters.interrogator);
 
-            const formattedResult = result.info;
-            message.reply(`🤖:\nAnalysis results (${parameters.interrogator}):\n${formattedResult}`);
+            const result = response.response.data as {caption:string};
+            message.reply(`🤖:\nAnalysis results (${parameters.interrogator}):\n${result.caption}`);
             return true;
             
         } catch (error) {
