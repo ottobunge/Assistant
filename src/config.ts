@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-enum ENV_VARS {
+export enum ENV_VARS {
     OPENAI_API_KEY = 'OPENAI_API_KEY',
     OWN_PHONE_NUMBER = 'OWN_PHONE_NUMBER',
     OWNER = 'OWNER',

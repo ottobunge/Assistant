@@ -1,6 +1,7 @@
 import { ChatCompletionRequestMessageRoleEnum } from "openai";
 import WAWebJS from "whatsapp-web.js";
 import { AgentManagerInterface } from "agent_manager/types.ts";
+import { ENV_VARS } from "./config.ts";
 
 
 export interface ChatHistory {
@@ -18,6 +19,13 @@ export enum COMMAND_TYPES {
     DELETE_AGENT_HISTORY = 'DELETE_AGENT_HISTORY',
     RELOAD_AGENT_MEMORY = 'RELOAD_AGENT_MEMORY',
     HELP = 'HELP',
+    UPDATE_CONFIG = 'UPDATE_CONFIG',
+    PRINT_CONFIG = 'PRINT_CONFIG',
+    STABLE_DIFFUSION = 'STABLE_DIFFUSION',
+    SD_CREATE_CONFIG = 'SD_CREATE_CONFIG',
+    SD_LIST_CONFIGS = 'SD_LIST_CONFIGS',
+    SD_UPDATE_CONFIG = 'SD_UPDATE_CONFIG',
+    SD_SHOW_CONFIG = 'SD_SHOW_CONFIG'
 }
 
 export interface CommandParameters {
@@ -45,10 +53,37 @@ export interface CommandParameters {
     };
     [COMMAND_TYPES.MODIFY_AGENT_CONFIG]: {
         agentId: string;
-        attribute: 'temperature' | 'topP' | 'frequencyPenalty' | 'presencePenalty' | string;
-        value: number;
+        settings: Array<{
+            attribute: 'temperature' | 'topP' | 'frequencyPenalty' | 'presencePenalty';
+            value: number;
+        }>;
     };
     [COMMAND_TYPES.HELP]: void;
+    [COMMAND_TYPES.UPDATE_CONFIG]: {
+        key: ENV_VARS.OPENAI_API_HOST | ENV_VARS.MODEL | ENV_VARS.SD_API_HOST;
+        value: string;
+    };
+    [COMMAND_TYPES.PRINT_CONFIG]: void;
+    [COMMAND_TYPES.STABLE_DIFFUSION]: {
+        configId: string;
+        prompt: string;
+    };
+    [COMMAND_TYPES.SD_CREATE_CONFIG]: {
+        configId: string;
+        steps: number;
+        width: number;
+        height: number;
+        cfgScale: number;
+        negativePrompt: string;
+    };
+    [COMMAND_TYPES.SD_LIST_CONFIGS]: void;
+    [COMMAND_TYPES.SD_UPDATE_CONFIG]: {
+        configId: string;
+        updates: Partial<Omit<StableDiffusionConfig, 'id'>>;
+    };
+    [COMMAND_TYPES.SD_SHOW_CONFIG]: {
+        configId: string;
+    };
 }
 
 export interface Command<CommandType extends COMMAND_TYPES> {
@@ -62,4 +97,13 @@ export interface CommandMatcher<CommandType extends COMMAND_TYPES> {
     description: string;
     getCommandParameters(text: string, availableAgentIds: string[]): CommandParameters[CommandType];
     trigger(parameters: CommandParameters[CommandType], agentManager: AgentManagerInterface, message: WAWebJS.Message): Promise<boolean>;
+}
+
+export interface StableDiffusionConfig {
+    id: string;
+    steps: number;
+    width: number;
+    height: number;
+    cfgScale: number;
+    negativePrompt: string;
 }
