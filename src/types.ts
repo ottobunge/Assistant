@@ -30,6 +30,15 @@ export enum COMMAND_TYPES {
     SD_SET_MODEL = 'SD_SET_MODEL',
     SD_CURRENT_MODEL = 'SD_CURRENT_MODEL'
 }
+export interface StableDiffusionConfig {
+    id: string;
+    steps: number;
+    width: number;
+    height: number;
+    cfgScale: number;
+    negativePrompt: string;
+    stylePrompt: string;
+}
 
 export interface CommandParameters {
     [COMMAND_TYPES.CHAT_AGENT]: {
@@ -71,14 +80,7 @@ export interface CommandParameters {
         configId: string;
         prompt: string;
     };
-    [COMMAND_TYPES.SD_CREATE_CONFIG]: {
-        configId: string;
-        steps: number;
-        width: number;
-        height: number;
-        cfgScale: number;
-        negativePrompt: string;
-    };
+    [COMMAND_TYPES.SD_CREATE_CONFIG]: {configId: string} & Omit<StableDiffusionConfig, 'id'>;
     [COMMAND_TYPES.SD_LIST_CONFIGS]: void;
     [COMMAND_TYPES.SD_UPDATE_CONFIG]: {
         configId: string;
@@ -107,11 +109,3 @@ export interface CommandMatcher<CommandType extends COMMAND_TYPES> {
     trigger(parameters: CommandParameters[CommandType], agentManager: AgentManagerInterface, message: WAWebJS.Message): Promise<boolean>;
 }
 
-export interface StableDiffusionConfig {
-    id: string;
-    steps: number;
-    width: number;
-    height: number;
-    cfgScale: number;
-    negativePrompt: string;
-}

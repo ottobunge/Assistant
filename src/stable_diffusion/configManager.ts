@@ -68,7 +68,8 @@ export class StableDiffusionConfigManager {
             width: 512,
             height: 512,
             cfgScale: 7,
-            negativePrompt: ''
+            negativePrompt: '',
+            stylePrompt: ''
         };
     }
 

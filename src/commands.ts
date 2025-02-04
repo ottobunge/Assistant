@@ -393,8 +393,6 @@ availableCommands.push({
         const chat = await message.getChat();
         const config = StableDiffusionConfigManager.getConfig(chat.id._serialized, parameters.configId) || 
                        StableDiffusionConfigManager.getDefaultConfig();
-        const contact = await message.getContact();
-        const isOwner = contact.number.includes(Config.OWN_PHONE_NUMBER);
         
 
         if (!Config.SD_API_HOST) {
@@ -403,11 +401,14 @@ availableCommands.push({
         }
 
         message.reply("🤖:\nGenerating image...");
-        
+        let prompt = parameters.prompt;
+        if(config.stylePrompt !== '') {
+            prompt = `${config.stylePrompt}\n${prompt}`;
+        }
         try {
             const sd = new StableDiffusion();
             const response = await sd.txt2img(
-                parameters.prompt,
+                prompt,
                 config.negativePrompt,
                 config.steps,
                 config.width,
@@ -450,8 +451,8 @@ availableCommands.push({
         const height = Number(params.match(/height=(\d+)/)?.[1] || 512);
         const cfgScale = Number(params.match(/cfg=(\d+)/)?.[1] || 7);
         const negativePrompt = params.match(/negPrompt=(.+)/)?.[1] || '';
-
-        return { configId, steps, width, height, cfgScale, negativePrompt };
+        const stylePrompt = params.match(/stylePrompt=(.+)/)?.[1] || '';
+        return { configId, steps, width, height, cfgScale, negativePrompt, stylePrompt };
     },
     trigger: async (parameters, _, message) => {
         const chat = await message.getChat();
@@ -463,7 +464,8 @@ availableCommands.push({
                 width: parameters.width,
                 height: parameters.height,
                 cfgScale: parameters.cfgScale,
-                negativePrompt: parameters.negativePrompt
+                negativePrompt: parameters.negativePrompt,
+                stylePrompt: parameters.stylePrompt,
             }
         );
         message.reply(`🤖:\nCreated SD config ${parameters.configId}`);
@@ -501,7 +503,8 @@ availableCommands.push({
                 width: Number(params.match(/width=(\d+)/)?.[1]),
                 height: Number(params.match(/height=(\d+)/)?.[1]),
                 cfgScale: Number(params.match(/cfg=(\d+)/)?.[1]),
-                negativePrompt: params.match(/negPrompt=(.+)/)?.[1]
+                negativePrompt: params.match(/negPrompt=(.+)/)?.[1],
+                stylePrompt: params.match(/stylePrompt=(.+)/)?.[1]
             }
         };
     },
@@ -514,7 +517,8 @@ availableCommands.push({
             width: parameters.updates.width,
             height: parameters.updates.height,
             cfgScale: parameters.updates.cfgScale,
-            negativePrompt: parameters.updates.negativePrompt
+            negativePrompt: parameters.updates.negativePrompt,
+            stylePrompt: parameters.updates.stylePrompt
         };
         
         // Remove undefined values
@@ -559,7 +563,8 @@ availableCommands.push({
             `Steps: ${config.steps}`,
             `Resolution: ${config.width}x${config.height}`,
             `CFG Scale: ${config.cfgScale}`,
-            `Negative Prompt: ${config.negativePrompt || 'None'}`
+            `Negative Prompt: ${config.negativePrompt || 'None'}`,
+            `Style Prompt: ${config.stylePrompt || 'None'}`
         ].join('\n');
 
         message.reply(`🤖:\nSD Config Details:\n${configDetails}`);
@@ -608,11 +613,12 @@ availableCommands.push({
         }
 
         try {
+            const settingMessage = message.reply(`🤖:\nSetting model to: ${parameters.modelName}`);
             await StableDiffusionApi.setModel(parameters.modelName, true);
-            message.reply(`🤖:\nModel set to: ${parameters.modelName}`);
+            (await settingMessage).reply(`🤖:\nModel set to: ${parameters.modelName}`);
             return true;
         } catch (error) {
-            message.reply(`🤖:\nFailed to set model to ${parameters.modelName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            message.reply(`🤖:\nFailed to set model: ${error instanceof Error ? error.message : 'Unknown error'}`);
             return false;
         }
     }
