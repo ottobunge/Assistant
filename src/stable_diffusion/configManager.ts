@@ -44,6 +44,11 @@ export class StableDiffusionConfigManager {
 
     updateConfig(chatId: string, userConfigId: string, update: Partial<StableDiffusionConfig>) {
         const fullId = `${chatId}_${userConfigId}`;
+        // we check if they are looking for the default config and make sure its there
+        if(userConfigId === 'default') {
+            // we call getConfig to make sure the default config is created
+            this.getDefaultConfig(chatId);
+        }
         if (!this.configs[fullId]) {
             throw new Error(`Config ${userConfigId} not found in this chat`);
         }
@@ -61,16 +66,19 @@ export class StableDiffusionConfigManager {
         return this.configs[`${chatId}_${userConfigId}`];
     }
 
-    getDefaultConfig(): StableDiffusionConfig {
-        return {
-            id: 'default',
-            steps: 20,
-            width: 512,
-            height: 512,
-            cfgScale: 7,
-            negativePrompt: '',
-            stylePrompt: ''
-        };
+    getDefaultConfig(chatId: string): StableDiffusionConfig {
+        const config = this.getConfig(chatId, 'default');
+        if(!config) {
+            return this.createConfig(chatId, 'default', {
+                steps: 40,
+                width: 1024,
+                height: 1024,
+                cfgScale: 4,
+                negativePrompt: '',
+                stylePrompt: ''
+            });
+        }
+        return config;
     }
 
     listConfigs(chatId: string): StableDiffusionConfig[] {

@@ -28,7 +28,8 @@ export enum COMMAND_TYPES {
     SD_SHOW_CONFIG = 'SD_SHOW_CONFIG',
     SD_LIST_MODELS = 'SD_LIST_MODELS',
     SD_SET_MODEL = 'SD_SET_MODEL',
-    SD_CURRENT_MODEL = 'SD_CURRENT_MODEL'
+    SD_CURRENT_MODEL = 'SD_CURRENT_MODEL',
+    SD_IMG2IMG = 'SD_IMG2IMG'
 }
 export interface StableDiffusionConfig {
     id: string;
@@ -94,6 +95,11 @@ export interface CommandParameters {
         modelName: string;
     };
     [COMMAND_TYPES.SD_CURRENT_MODEL]: void;
+    [COMMAND_TYPES.SD_IMG2IMG]: {
+        configId: string;
+        denoisingStrength: number;
+        prompt: string;
+    };
 }
 
 export interface Command<CommandType extends COMMAND_TYPES> {

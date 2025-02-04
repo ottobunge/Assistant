@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs-extra';
 import StableDiffusionApi from './stable_diffusion/api.ts';
+import sharp from "sharp";
 
 async function makeMessageString  (message: WAWebJS.Message, body: string) {
     const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
@@ -378,7 +379,7 @@ availableCommands.push({
 } as CommandMatcher<COMMAND_TYPES.PRINT_CONFIG>);
 availableCommands.push({
     command: COMMAND_TYPES.STABLE_DIFFUSION,
-    template: ['/sd <configId> <...prompt>', '/sd <...prompt>'],
+    template: ['/txt2img <configId> <...prompt>', '/txt2img <...prompt>'],
     description: "Generate image using Stable Diffusion with optional config",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
@@ -392,7 +393,7 @@ availableCommands.push({
     trigger: async (parameters, _, message) => {
         const chat = await message.getChat();
         const config = StableDiffusionConfigManager.getConfig(chat.id._serialized, parameters.configId) || 
-                       StableDiffusionConfigManager.getDefaultConfig();
+                       StableDiffusionConfigManager.getDefaultConfig(chat.id._serialized);
         
 
         if (!Config.SD_API_HOST) {
@@ -489,7 +490,7 @@ availableCommands.push({
 } as CommandMatcher<COMMAND_TYPES.SD_LIST_CONFIGS>);
 availableCommands.push({
     command: COMMAND_TYPES.SD_UPDATE_CONFIG,
-    template: '/sd-config update <configId> [steps=<steps>] [width=<width>] [height=<height>] [cfg=<cfgScale>] [negPrompt=<...negativePrompt>]',
+    template: '/sd-config update <configId> [steps=<steps>] [width=<width>] [height=<height>] [cfg=<cfgScale>] [negPrompt=<...negativePrompt>] [stylePrompt=<...stylePrompt>]',
     description: "Update existing SD config",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
@@ -499,12 +500,12 @@ availableCommands.push({
         return {
             configId,
             updates: {
-                steps: Number(params.match(/steps=(\d+)/)?.[1]),
-                width: Number(params.match(/width=(\d+)/)?.[1]),
-                height: Number(params.match(/height=(\d+)/)?.[1]),
-                cfgScale: Number(params.match(/cfg=(\d+)/)?.[1]),
-                negativePrompt: params.match(/negPrompt=(.+)/)?.[1],
-                stylePrompt: params.match(/stylePrompt=(.+)/)?.[1]
+                steps: params.match(/steps=(\d+)/)?.[1] ? Number(params.match(/steps=(\d+)/)?.[1]) : undefined,
+                width: params.match(/width=(\d+)/)?.[1] ? Number(params.match(/width=(\d+)/)?.[1]) : undefined,
+                height: params.match(/height=(\d+)/)?.[1] ? Number(params.match(/height=(\d+)/)?.[1]) : undefined,
+                cfgScale: params.match(/cfg=(\d+)/)?.[1] ? Number(params.match(/cfg=(\d+)/)?.[1]) : undefined,
+                negativePrompt: params.match(/negPrompt=(.+)/)?.[1] ? params.match(/negPrompt=(.+)/)?.[1] : undefined,
+                stylePrompt: params.match(/stylePrompt=(.+)/)?.[1] ? params.match(/stylePrompt=(.+)/)?.[1] : undefined
             }
         };
     },
@@ -640,5 +641,65 @@ availableCommands.push({
         }
     }
 } as CommandMatcher<COMMAND_TYPES.SD_CURRENT_MODEL>);
+availableCommands.push({
+    command: COMMAND_TYPES.SD_IMG2IMG,
+    template: ['/img2img <denoising_strength> <...prompt>'],
+    description: "Generate image from image using Stable Diffusion",
+    getCommandParameters: (text: string) => {
+        const textParts = text.split(' ');
+        const denoisingStrength = parseFloat(textParts[1]);
+        return {
+            configId: 'default',
+            denoisingStrength: isNaN(denoisingStrength) ? 0.75 : denoisingStrength,
+            prompt: textParts.slice(2).join(' ')
+        };
+    },
+    trigger: async (parameters, _, message) => {
+        if (!message.hasMedia) {
+            message.reply("🤖:\nPlease attach an image with this command!");
+            return false;
+        }
+
+        const media = await message.downloadMedia();
+        const chat = await message.getChat();
+        const config = StableDiffusionConfigManager.getConfig(chat.id._serialized, parameters.configId) || 
+                       StableDiffusionConfigManager.getDefaultConfig(chat.id._serialized);
+        let imgBuffer = Buffer.from(media.data, 'base64');
+        const initImage = sharp(imgBuffer);
+
+        message.reply("🤖:\nGenerating image...");
+        try {
+            const sd = new StableDiffusion();
+            const response = await sd.img2img(
+                parameters.prompt,
+                initImage,
+                parameters.denoisingStrength,
+                config.negativePrompt,
+                config.steps,
+                config.width,
+                config.height,
+                config.cfgScale
+            );
+
+            if (response?.images?.[0]) {
+                const outputDir = path.join('output', chat.id._serialized);
+                await fs.ensureDir(outputDir);
+                
+                const imageId = uuidv4();
+                const imagePath = path.join(outputDir, `${imageId}.png`);
+                
+                await response.images[0].toFile(imagePath);
+                const replyMedia = await MessageMedia.fromFilePath(imagePath);
+                message.reply(replyMedia);
+            } else {
+                message.reply("🤖:\nNo image generated");
+            }
+        } catch (error) {
+            console.error('Img2Img Error:', error);
+            message.reply("🤖:\nFailed to generate image");
+        }
+        return true;
+    }
+} as CommandMatcher<COMMAND_TYPES.SD_IMG2IMG>);
 
 export default availableCommands;

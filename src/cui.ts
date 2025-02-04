@@ -4,12 +4,25 @@ import { COMMAND_TYPES, CommandMatcher, Command } from './types.ts';
 import commands from './commands.ts';
 
 const functionTriggerTemplateMatcher = (template: string, text: string) => {
-    const templateParts = template.split(' ');
+    // we split on brackets and get the first part because brackets are used for parameters that can be optional
+    // we just need at least one part to match
+    const hasBrackets = template.includes('[');
+    const templateParts = hasBrackets ? template.split('[')[0].split(' ') : template.split(' ');
+    // if there were brackets then the last part of the template is a parameter but in our string it will be empty (because we split on spaces)
+    // so we add a placeholder to the end of the template parts
+    if(hasBrackets) {
+        templateParts[templateParts.length - 1] = "<>";
+    }
     const textParts = text.toLocaleLowerCase().split(' ');
+
     if(textParts.length >= templateParts.length) {
         return templateParts.every((part, index) => {
             // Matches against a parameter
             if(part.startsWith('<') && part.endsWith('>')) {
+                return true;
+            }
+            if(part.startsWith('[') && part.endsWith(']')) {
+                console.log({part, textParts});
                 return true;
             }
             // Matches against a literal in /assistant <text> /assistant is the literal <text> is the parameter
