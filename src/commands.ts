@@ -728,17 +728,44 @@ availableCommands.push({
         let imgBuffer = Buffer.from(media.data, 'base64');
         const initImage = sharp(imgBuffer);
         const metadata = await initImage.metadata();
+        const originalWidth = metadata.width || config.width;
+        const originalHeight = metadata.height || config.height;
+
+        // Calculate original aspect ratio
+        const originalAspectRatio = originalWidth / originalHeight;
+
+        // Get target dimensions from parameters or config
+        let targetWidth = parameters.width || config.width;
+        let targetHeight = parameters.height || config.height;
+
+        // Calculate target aspect ratio
+        const targetAspectRatio = targetWidth / targetHeight;
+
+        // Adjust dimensions to maintain original aspect ratio
+        if (originalAspectRatio > targetAspectRatio) {
+            // Original is wider - constrain by width
+            targetHeight = Math.round(targetWidth / originalAspectRatio);
+        } else {
+            // Original is taller - constrain by height
+            targetWidth = Math.round(targetHeight * originalAspectRatio);
+        }
+
+        // Resize with exact dimensions
+        const resizedImage = initImage.resize(targetWidth, targetHeight, {
+            fit: 'inside' // Ensures exact dimensions are used
+        });
+
         message.reply("🤖:\nGenerating image...");
         try {
             const sd = new StableDiffusion();
             const response = await sd.img2img(
                 parameters.prompt,
-                initImage,
+                resizedImage,
                 parameters.denoisingStrength,
                 config.negativePrompt,
                 parameters.steps || config.steps,
-                parameters.width || metadata.width,
-                parameters.height || metadata.height,
+                targetWidth, // Use calculated width
+                targetHeight, // Use calculated height
                 parameters.cfgScale || config.cfgScale
             );
 
