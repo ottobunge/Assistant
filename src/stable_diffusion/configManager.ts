@@ -75,7 +75,7 @@ export class StableDiffusionConfigManager {
                 height: 1024,
                 cfgScale: 4,
                 negativePrompt: '',
-                stylePrompt: ''
+                stylePrompt: 'SCORE_9,SCORE_8_UP,SCORE_8,SCORE_7_UP,SCORE_7'
             });
         }
         return config;
