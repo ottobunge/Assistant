@@ -376,8 +376,8 @@ availableCommands.push({
     }
 } as CommandMatcher<COMMAND_TYPES.PRINT_CONFIG>);
 availableCommands.push({
-    command: COMMAND_TYPES.STABLE_DIFFUSION,
-    template: ['/sd <configId> <...prompt>', '/sd <...prompt>'],
+    command: COMMAND_TYPES.SD_TXT2IMG,
+    template: ['/txt2img <configId> <...prompt>', '/txt2img <...prompt>'],
     description: "Generate image from text",
     getCommandParameters: (text: string) => {
         const textParts = text.split(' ');
@@ -477,7 +477,7 @@ availableCommands.push({
         }
         return true;
     }
-} as CommandMatcher<COMMAND_TYPES.STABLE_DIFFUSION>);
+} as CommandMatcher<COMMAND_TYPES.SD_TXT2IMG>);
 availableCommands.push({
     command: COMMAND_TYPES.SD_CREATE_CONFIG,
     template: '/sd-config create <configId> steps=<steps> width=<width> height=<height> cfg=<cfgScale> negPrompt=<...negativePrompt>',

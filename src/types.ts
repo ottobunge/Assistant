@@ -21,7 +21,7 @@ export enum COMMAND_TYPES {
     HELP = 'HELP',
     UPDATE_CONFIG = 'UPDATE_CONFIG',
     PRINT_CONFIG = 'PRINT_CONFIG',
-    STABLE_DIFFUSION = 'STABLE_DIFFUSION',
+    SD_TXT2IMG = 'SD_TXT2IMG',
     SD_CREATE_CONFIG = 'SD_CREATE_CONFIG',
     SD_LIST_CONFIGS = 'SD_LIST_CONFIGS',
     SD_UPDATE_CONFIG = 'SD_UPDATE_CONFIG',
@@ -79,7 +79,7 @@ export interface CommandParameters {
         value: string;
     };
     [COMMAND_TYPES.PRINT_CONFIG]: void;
-    [COMMAND_TYPES.STABLE_DIFFUSION]: {
+    [COMMAND_TYPES.SD_TXT2IMG]: {
         configId: string;
         prompt: string;
         steps?: number;
