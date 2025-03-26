@@ -16,6 +16,14 @@ import sharp from "sharp";
 import axios, { AxiosResponse } from 'axios';
 import { AxiosApiRawResponse } from 'stable-diffusion-api';
 
+function cleanPrompt(prompt: string): string {
+    return prompt
+        .replace(/\s*,\s*,\s*/g, ',') // Remove multiple commas with whitespace
+        .replace(/\s*,\s*/g, ', ') // Remove whitespace around single commas
+        .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+        .trim();
+}
+
 async function makeMessageString  (message: WAWebJS.Message, body: string) {
     const dateString = `Current Date: ${new Date().toLocaleDateString()}`;
     const timesString = `Current Time: ${new Date().toLocaleTimeString()}`;
@@ -383,42 +391,35 @@ availableCommands.push({
         const textParts = text.split(' ');
         const configId = textParts[1] === 'default' ? 'default' : textParts[1];
         
-        let promptParts = textParts.slice(textParts[1] === 'default' ? 2 : 1);
-        const params: any = {};
-        let negativePromptParts: string[] = [];
-        let parsingNegative = false;
+        // Extract numeric parameters first
+        const params: {
+            steps?: number;
+            cfg?: number;
+            width?: number;
+            height?: number;
+        } = {};
+        
+        // Remove numeric parameters from text
+        let remainingText = textParts.slice(textParts[1] === 'default' ? 2 : 1).join(' ');
+        remainingText = remainingText.replace(/(steps|cfg|width|height)=(\d+)/g, (match, param, value) => {
+            params[param as keyof typeof params] = Number(value);
+            return '';
+        }).trim();
 
-        promptParts = promptParts.filter(part => {
-            if (part === '-neg' || part === '--negative') {
-                parsingNegative = true;
-                return false;
-            }
-
-            if (parsingNegative) {
-                if (part.match(/^(steps|cfg|width|height)=/)) {
-                    parsingNegative = false;
-                    const match = part.match(/(\w+)=(\d+)/);
-                    if (match) {
-                        params[match[1]] = Number(match[2]);
-                    }
-                    return false;
-                }
-                negativePromptParts.push(part);
-                return false;
-            }
-
-            const match = part.match(/(steps|cfg|width|height)=(\d+)/);
-            if (match) {
-                params[match[1]] = Number(match[2]);
-                return false;
-            }
-            return true;
-        });
+        // Split into positive and negative prompts
+        let positivePrompt = remainingText;
+        let negativePrompt: string | undefined;
+        
+        const negMatch = remainingText.match(/(-neg|--negative)\s+(.+)$/);
+        if (negMatch) {
+            positivePrompt = remainingText.slice(0, negMatch.index).trim();
+            negativePrompt = negMatch[2].trim();
+        }
 
         return {
             configId,
-            prompt: promptParts.join(' '),
-            negativePrompt: negativePromptParts.join(' ') || undefined,
+            prompt: cleanPrompt(positivePrompt),
+            negativePrompt: negativePrompt ? cleanPrompt(negativePrompt) : undefined,
             ...params
         };
     },
@@ -445,7 +446,7 @@ availableCommands.push({
                 parameters.steps || config.steps,
                 parameters.width || config.width,
                 parameters.height || config.height,
-                parameters.cfgScale || config.cfgScale
+                parameters.cfg || config.cfg
             );
 
             if (response?.images?.[0]) {
@@ -463,7 +464,7 @@ availableCommands.push({
                     `Prompt: ${prompt}`,
                     `Negative: ${parameters.negativePrompt || config.negativePrompt}`,
                     `Steps: ${parameters.steps || config.steps}`,
-                    `CFG: ${parameters.cfgScale || config.cfgScale}`,
+                    `CFG: ${parameters.cfg || config.cfg}`,
                     `Size: ${parameters.width || config.width}x${parameters.height || config.height}`
                 ].join('\n');
 
@@ -490,10 +491,10 @@ availableCommands.push({
         const steps = Number(params.match(/steps=(\d+)/)?.[1] || 20);
         const width = Number(params.match(/width=(\d+)/)?.[1] || 512);
         const height = Number(params.match(/height=(\d+)/)?.[1] || 512);
-        const cfgScale = Number(params.match(/cfg=(\d+)/)?.[1] || 7);
+        const cfg = Number(params.match(/cfg=(\d+)/)?.[1] || 7);
         const negativePrompt = params.match(/negPrompt=(.+)/)?.[1] || '';
         const stylePrompt = params.match(/stylePrompt=(.+)/)?.[1] || '';
-        return { configId, steps, width, height, cfgScale, negativePrompt, stylePrompt };
+        return { configId, steps, width, height, cfg, negativePrompt, stylePrompt };
     },
     trigger: async (parameters, _, message) => {
         const chat = await message.getChat();
@@ -504,7 +505,7 @@ availableCommands.push({
                 steps: parameters.steps,
                 width: parameters.width,
                 height: parameters.height,
-                cfgScale: parameters.cfgScale,
+                cfg: parameters.cfg,
                 negativePrompt: parameters.negativePrompt,
                 stylePrompt: parameters.stylePrompt,
             }
@@ -522,7 +523,7 @@ availableCommands.push({
         const chat = await message.getChat();
         const configs = StableDiffusionConfigManager.listConfigs(chat.id._serialized);
         const configsString = configs.map(c => 
-            `${c.id}: ${c.width}x${c.height} steps=${c.steps} cfg=${c.cfgScale}`
+            `${c.id}: ${c.width}x${c.height} steps=${c.steps} cfg=${c.cfg}`
         ).join('\n');
         message.reply(`🤖:\nSD Configs:\n${configsString}`);
         return true;
@@ -543,7 +544,7 @@ availableCommands.push({
                 steps: params.match(/steps=(\d+)/)?.[1] ? Number(params.match(/steps=(\d+)/)?.[1]) : undefined,
                 width: params.match(/width=(\d+)/)?.[1] ? Number(params.match(/width=(\d+)/)?.[1]) : undefined,
                 height: params.match(/height=(\d+)/)?.[1] ? Number(params.match(/height=(\d+)/)?.[1]) : undefined,
-                cfgScale: params.match(/cfg=(\d+)/)?.[1] ? Number(params.match(/cfg=(\d+)/)?.[1]) : undefined,
+                cfg: params.match(/cfg=(\d+)/)?.[1] ? Number(params.match(/cfg=(\d+)/)?.[1]) : undefined,
                 negativePrompt: params.match(/negPrompt=(.+)/)?.[1] ? params.match(/negPrompt=(.+)/)?.[1] : undefined,
                 stylePrompt: params.match(/stylePrompt=(.+)/)?.[1] ? params.match(/stylePrompt=(.+)/)?.[1] : undefined
             }
@@ -557,7 +558,7 @@ availableCommands.push({
             steps: parameters.updates.steps,
             width: parameters.updates.width,
             height: parameters.updates.height,
-            cfgScale: parameters.updates.cfgScale,
+            cfg: parameters.updates.cfg,
             negativePrompt: parameters.updates.negativePrompt,
             stylePrompt: parameters.updates.stylePrompt
         };
@@ -603,7 +604,7 @@ availableCommands.push({
             `ID: ${config.id}`,
             `Steps: ${config.steps}`,
             `Resolution: ${config.width}x${config.height}`,
-            `CFG Scale: ${config.cfgScale}`,
+            `CFG Scale: ${config.cfg}`,
             `Negative Prompt: ${config.negativePrompt || 'None'}`,
             `Style Prompt: ${config.stylePrompt || 'None'}`
         ].join('\n');
@@ -723,43 +724,36 @@ availableCommands.push({
         const textParts = text.split(' ');
         const denoisingStrength = parseFloat(textParts[1]);
         
-        let promptParts = textParts.slice(2);
-        const params: any = {};
-        let negativePromptParts: string[] = [];
-        let parsingNegative = false;
+        // Extract numeric parameters first
+        const params: {
+            steps?: number;
+            cfg?: number;
+            width?: number;
+            height?: number;
+        } = {};
+        
+        // Remove numeric parameters from text
+        let remainingText = textParts.slice(2).join(' ');
+        remainingText = remainingText.replace(/(steps|cfg|width|height)=(\d+)/g, (match, param, value) => {
+            params[param as keyof typeof params] = Number(value);
+            return '';
+        }).trim();
 
-        promptParts = promptParts.filter(part => {
-            if (part === '-neg' || part === '--negative') {
-                parsingNegative = true;
-                return false;
-            }
-
-            if (parsingNegative) {
-                if (part.match(/^(steps|cfg|width|height)=/)) {
-                    parsingNegative = false;
-                    const match = part.match(/(\w+)=(\d+)/);
-                    if (match) {
-                        params[match[1]] = Number(match[2]);
-                    }
-                    return false;
-                }
-                negativePromptParts.push(part);
-                return false;
-            }
-
-            const match = part.match(/(steps|cfg|width|height)=(\d+)/);
-            if (match) {
-                params[match[1]] = Number(match[2]);
-                return false;
-            }
-            return true;
-        });
+        // Split into positive and negative prompts
+        let positivePrompt = remainingText;
+        let negativePrompt: string | undefined;
+        
+        const negMatch = remainingText.match(/(-neg|--negative)\s+(.+)$/);
+        if (negMatch) {
+            positivePrompt = remainingText.slice(0, negMatch.index).trim();
+            negativePrompt = negMatch[2].trim();
+        }
 
         return {
             configId: 'default',
             denoisingStrength: isNaN(denoisingStrength) ? 0.75 : denoisingStrength,
-            prompt: promptParts.join(' '),
-            negativePrompt: negativePromptParts.join(' ') || undefined,
+            prompt: cleanPrompt(positivePrompt),
+            negativePrompt: negativePrompt ? cleanPrompt(negativePrompt) : undefined,
             ...params
         };
     },
@@ -814,7 +808,7 @@ availableCommands.push({
                 parameters.steps || config.steps,
                 targetWidth,
                 targetHeight,
-                parameters.cfgScale || config.cfgScale
+                parameters.cfg || config.cfg
             );
 
             if (response?.images?.[0]) {
@@ -832,7 +826,7 @@ availableCommands.push({
                     `Prompt: ${parameters.prompt}`,
                     `Negative: ${parameters.negativePrompt || config.negativePrompt}`,
                     `Steps: ${parameters.steps || config.steps}`,
-                    `CFG: ${parameters.cfgScale || config.cfgScale}`,
+                    `CFG: ${parameters.cfg || config.cfg}`,
                     `Size: ${targetWidth}x${targetHeight}`,
                     `Denoising: ${parameters.denoisingStrength}`
                 ].join('\n');

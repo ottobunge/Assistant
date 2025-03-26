@@ -38,7 +38,7 @@ export interface StableDiffusionConfig {
     steps: number;
     width: number;
     height: number;
-    cfgScale: number;
+    cfg: number;
     negativePrompt: string;
     stylePrompt: string;
 }
@@ -83,7 +83,7 @@ export interface CommandParameters {
         configId: string;
         prompt: string;
         steps?: number;
-        cfgScale?: number;
+        cfg?: number;
         width?: number;
         height?: number;
         negativePrompt?: string;
@@ -107,7 +107,7 @@ export interface CommandParameters {
         denoisingStrength: number;
         prompt: string;
         steps?: number;
-        cfgScale?: number;
+        cfg?: number;
         width?: number;
         height?: number;
         negativePrompt?: string;

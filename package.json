@@ -6,6 +6,7 @@
     "@types/fs-extra": "^11.0.4",
     "axios": "^1.7.9",
     "bun": "^1.2.0",
+    "comfy-ui-client": "^0.1.2",
     "dotenv": "^16.3.1",
     "openai": "^3.3.0",
     "patch-package": "^8.0.0",
